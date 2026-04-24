@@ -27,8 +27,9 @@ class SQLiteStorage:
         if self.database_path.exists():
             with self._connect() as connection:
                 version = connection.execute("PRAGMA user_version").fetchone()[0]
-            if version != SCHEMA_VERSION:
-                self.database_path.unlink()
+            if version == SCHEMA_VERSION:
+                return
+            self.database_path.unlink()
         self._initialize()
 
     def _initialize(self) -> None:

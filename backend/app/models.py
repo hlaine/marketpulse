@@ -46,6 +46,26 @@ class ExtractionResult(BaseModel):
     usage: ProviderUsage | None = None
 
 
+class ChatRequest(BaseModel):
+    message: str = Field(min_length=1)
+    conversation_id: str | None = None
+
+
+class ChatQueryResult(BaseModel):
+    sql: str
+    rows: list[dict]
+    row_count: int
+
+
+class ChatResponse(BaseModel):
+    answer: str
+    conversation_id: str | None = None
+    sql: list[str] = Field(default_factory=list)
+    rows: list[dict] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    usage: ProviderUsage | None = None
+
+
 class StoredRecord(BaseModel):
     record: ConsultingRequestV1
     database_path: Path

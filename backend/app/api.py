@@ -1,17 +1,27 @@
 from __future__ import annotations
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 
+from app.chat import AnalysisChatService, ChatError, UnsafeQueryError
 from app.config import Settings, get_settings
-from app.models import ExtractionRequest
+from app.models import ChatRequest, ExtractionRequest
 from app.pipeline import ExtractionPipeline
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     active_settings = settings or get_settings()
     pipeline = ExtractionPipeline(active_settings)
+    chat_service = AnalysisChatService(active_settings)
 
     app = FastAPI(title=active_settings.app_name)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["http://localhost:4200", "http://127.0.0.1:4200"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     @app.get("/health")
     def health() -> dict[str, str]:
@@ -52,6 +62,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(
                 status_code=404, detail=f"Unknown request_id: {request_id}"
             ) from exc
+
+    @app.post("/chat")
+    def chat(payload: ChatRequest):
+        try:
+            return chat_service.answer(payload)
+        except UnsafeQueryError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except ChatError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
 
     return app
 
