@@ -1,0 +1,9 @@
+{
+  "id": 42,
+  "date": "2021-08-11T17:44:53+00:00",
+  "subject": "New Request: Go Developer",
+  "from": "Maria Svensson <maria.svensson@konsultpartners.se>",
+  "to": "inbox@dummy.se",
+  "cc": "",
+  "body": "Hi,\n\nI'm writing to share a new consultant request that has just come in.\n\nCLIENT: PixelForge\nROLE: Senior Go Developer\nSTART: ASAP\nDURATION: 12 months\nLOCATION: Stockholm / hybrid\nRATE: 925 SEK/h\n\nThe team works primarily with Go, AWS and MySQL.\n\nKey requirements:\n• Go\n• AWS\n• MySQL\n\nDon't hesitate to reach out with any questions.\n\nBest regards,\nMaria Svensson\nSenior Talent Manager\nKonsult Partners\nTel: +46 70 567 89 01"
+}

@@ -1,0 +1,9 @@
+{
+  "id": 102,
+  "date": "2023-01-07T07:25:54+00:00",
+  "subject": "ASAP: Fullstack Engineer",
+  "from": "Emma Andersson <emma.andersson@nexum.se>",
+  "to": "inbox@dummy.se",
+  "cc": "",
+  "body": "<html><body>\n<p>Hi,</p>\n<p>I'm writing to share a new consultant request that has just come in.</p>\n<p>CLIENT: NordKart<br>\nROLE: Architect Fullstack Engineer<br>\nSTART: ASAP<br>\nDURATION: 12 months<br>\nLOCATION: Stockholm / hybrid<br>\nRATE: To be discussed</p>\n<p>The team works primarily with TypeScript, GCP, Kubernetes and MongoDB.</p>\n<p>Key requirements:</p>\n<ul><li>TypeScript</li><li>GCP</li><li>Kubernetes</li><li>MongoDB</li></ul>\n<p>Don't hesitate to reach out with any questions.</p>\n<p>Best regards,<br>\nEmma Andersson<br>\nRecruitment Consultant<br>\nNexum Consulting<br>\nTel: +46 76 901 23 45</p>\n</body></html>"
+}

@@ -1,0 +1,9 @@
+{
+  "id": 2,
+  "date": "2020-01-09T15:09:17+00:00",
+  "subject": "Nytt uppdrag: Software Engineer",
+  "from": "Sara Johansson <sara.johansson@nordstaff.se>",
+  "to": "inbox@dummy.se",
+  "cc": "",
+  "body": "<html><body>\n<p>Hej,</p>\n<p>Hoppas allt är bra! Vi har ett prioriterat behov vi hoppas att ni kan hjälpa oss med.</p>\n<p>Vår kund StreamNord söker en tech lead Software Engineer för ett konsultuppdrag inom telekom och media.</p>\n<p>Uppdragsdetaljer:</p>\n<ul><li>Start: 2020-03-04</li><li>Längd: 6 månader</li><li>Plats: Stockholm (på plats)</li><li>Ersättning: 950 kr/h</li></ul>\n<p>Önskad teknisk kompetens:</p>\n<ul><li>Kotlin</li><li>Kubernetes</li><li>DynamoDB</li></ul>\n<p>Hör gärna av er om ni har en lämplig kandidat!</p>\n<p>Med vänlig hälsning,<br>\nSara Johansson<br>\nTalent Acquisition Specialist<br>\nNordStaff AB<br>\nTel: +46 73 456 78 90</p>\n</body></html>"
+}

@@ -1,0 +1,9 @@
+{
+  "id": 101,
+  "date": "2023-01-04T08:12:08+00:00",
+  "subject": "Ny förfrågan: Backend Engineer",
+  "from": "Johan Bergström <johan.bergstrom@konsultpartners.se>",
+  "to": "inbox@dummy.se",
+  "cc": "",
+  "body": "<html><body>\n<p>Hej,</p>\n<p>Nytt uppdrag som kan vara av intresse:</p>\n<p>Kund: PixelForge (gaming)<br>\nRoll: Backend Engineer (senior)<br>\nStart: 2023-02-14<br>\nLängd: 6 månader<br>\nPlats: Malmö / hybrid<br>\nArvode: 975 kr/h</p>\n<p>Teknikkrav:</p>\n<ul><li>Java</li><li>AWS</li><li>Docker</li><li>DynamoDB</li></ul>\n<p>Kontakta mig om ni är intresserade!</p>\n<p>Mvh,<br>\nJohan Bergström, Konsult Partners<br>\n+46 76 456 78 90</p>\n</body></html>"
+}
