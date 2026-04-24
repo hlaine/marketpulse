@@ -53,32 +53,52 @@ export class DashboardPageComponent implements OnInit {
     }
 
     const max = Math.max(...points.map((point) => point.value), 1);
+    const minX = 2;
+    const maxX = 98;
+    const topY = 10;
+    const bottomY = 90;
 
     return points
       .map((point, index) => {
-        const x = points.length === 1 ? 50 : (index / (points.length - 1)) * 100;
-        const y = 100 - (point.value / max) * 100;
+        const x = points.length === 1 ? 50 : minX + (index / (points.length - 1)) * (maxX - minX);
+        const y = bottomY - (point.value / max) * (bottomY - topY);
 
         return `${x},${y}`;
       })
       .join(' ');
   }
 
-  protected xPosition(index: number, total: number): number {
-    return total <= 1 ? 50 : (index / (total - 1)) * 100;
+  protected maxPointValue(points: DataPoint[]): number {
+    return Math.max(...points.map((point) => point.value), 1);
   }
 
-  protected yPosition(value: number, points: DataPoint[]): number {
-    const max = Math.max(...points.map((point) => point.value), 1);
-    return 100 - (value / max) * 100;
+  protected axisTicks(points: DataPoint[], steps = 4): number[] {
+    const max = this.maxPointValue(points);
+    return Array.from({ length: steps + 1 }, (_, index) => Math.round((max / steps) * (steps - index)));
+  }
+
+  protected xAxisLabels(points: DataPoint[], count = 6): DataPoint[] {
+    if (points.length <= count) {
+      return points;
+    }
+
+    const step = (points.length - 1) / (count - 1);
+
+    return Array.from({ length: count }, (_, index) => points[Math.round(index * step)]).filter(
+      (point, index, items) => index === items.findIndex((item) => item.label === point.label)
+    );
   }
 
   protected barHeight(value: number, max: number): number {
-    return max ? (value / max) * 100 : 0;
+    return max ? 12 + (value / max) * 68 : 12;
   }
 
   protected maxTotal(points: RoleRemotePoint[]): number {
     return Math.max(...points.map((point) => point.total), 1);
+  }
+
+  protected formatRateTick(value: number): string {
+    return `${value}`;
   }
 
   protected pieSegments(slices: PieSlice[]): Array<PieSlice & { dash: string; rotateOffset: number }> {

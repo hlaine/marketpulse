@@ -35,14 +35,23 @@
             </div>
           </div>
 
-          <div class="line-panel">
-            <svg class="line-chart" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-              <polyline [attr.points]="linePoints(dashboard.volumePoints)" />
-            </svg>
-            <div class="line-axis">
-              @for (point of dashboard.volumePoints; track point.label) {
-                <span class="axis-label">{{ point.label }}</span>
+          <div class="chart-shell">
+            <div class="y-axis" aria-hidden="true">
+              @for (tick of axisTicks(dashboard.volumePoints); track tick) {
+                <span class="y-axis-label">{{ tick }}</span>
               }
+            </div>
+
+            <div class="chart-main">
+              <svg class="line-chart" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                <line class="chart-baseline" x1="0" y1="90" x2="100" y2="90"></line>
+                <polyline [attr.points]="linePoints(dashboard.volumePoints)" />
+              </svg>
+              <div class="line-axis">
+                @for (point of xAxisLabels(dashboard.volumePoints); track point.label) {
+                  <span class="axis-label">{{ point.label }}</span>
+                }
+              </div>
             </div>
           </div>
         </article>
@@ -55,9 +64,18 @@
             </div>
           </div>
 
+          <div class="staple-legend" aria-hidden="true">
+            <span class="legend-key"><i class="legend-swatch legend-swatch--total"></i>Total</span>
+            <span class="legend-key"><i class="legend-swatch legend-swatch--remote"></i>Remote + hybrid</span>
+          </div>
+
           <div class="staple-chart" aria-label="Requests by role and remote or hybrid share">
             @for (point of dashboard.roleRemotePoints; track point.label) {
               <div class="staple-column">
+                <div class="staple-values">
+                  <span class="staple-value staple-value--total">{{ point.total }}</span>
+                  <span class="staple-value staple-value--remote">{{ point.remoteHybrid }}</span>
+                </div>
                 <div class="staple-bars">
                   <span
                     class="staple staple--total"
@@ -119,14 +137,23 @@
             </div>
           </div>
 
-          <div class="line-panel">
-            <svg class="line-chart line-chart--rate" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-              <polyline [attr.points]="linePoints(dashboard.ratePoints)" />
-            </svg>
-            <div class="line-axis">
-              @for (point of dashboard.ratePoints; track point.label) {
-                <span class="axis-label">{{ point.label }}</span>
+          <div class="chart-shell">
+            <div class="y-axis" aria-hidden="true">
+              @for (tick of axisTicks(dashboard.ratePoints); track tick) {
+                <span class="y-axis-label">{{ formatRateTick(tick) }}</span>
               }
+            </div>
+
+            <div class="chart-main">
+              <svg class="line-chart line-chart--rate" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                <line class="chart-baseline" x1="0" y1="90" x2="100" y2="90"></line>
+                <polyline [attr.points]="linePoints(dashboard.ratePoints)" />
+              </svg>
+              <div class="line-axis">
+                @for (point of xAxisLabels(dashboard.ratePoints); track point.label) {
+                  <span class="axis-label">{{ point.label }}</span>
+                }
+              </div>
             </div>
           </div>
         </article>
