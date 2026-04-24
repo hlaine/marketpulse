@@ -2,13 +2,27 @@
 @let selectedRequest = heroRequest();
 
 <main class="dashboard-shell">
+  @if (loading()) {
+    <section class="state-panel">
+      <p class="eyebrow">Loading</p>
+      <h1>Preparing Market Pulse</h1>
+      <p class="state-copy">Loading the local SQLite snapshot for the dashboard.</p>
+    </section>
+  } @else if (error()) {
+    <section class="state-panel">
+      <p class="eyebrow">Error</p>
+      <h1>Dashboard data is unavailable</h1>
+      <p class="state-copy">{{ error() }}</p>
+    </section>
+  } @else {
   <section class="hero-panel">
     <div class="hero-copy">
       <p class="eyebrow">Public dashboard</p>
       <h1>Market Pulse</h1>
       <p class="hero-summary">
-        A clean overview of incoming consulting demand, built on mock extraction data shaped after the current contract.
+        A clean overview of incoming consulting demand, powered by the local SQLite snapshot described in <code>AGENTS.md</code>.
       </p>
+      <p class="snapshot-note">{{ dashboard.snapshotNote }}</p>
     </div>
 
     <div class="hero-meta">
@@ -18,11 +32,11 @@
       </div>
       <div>
         <span class="meta-label">Latest request</span>
-        <strong>{{ selectedRequest.demand.primary_role.normalized }}</strong>
+        <strong>{{ selectedRequest?.primary_role || 'Unknown role' }}</strong>
       </div>
       <div>
-        <span class="meta-label">Latest summary</span>
-        <p>{{ selectedRequest.demand.summary.text }}</p>
+        <span class="meta-label">Latest source</span>
+        <p>{{ selectedRequest?.sender_organization || selectedRequest?.source_kind || 'Unknown source' }}</p>
       </div>
     </div>
   </section>
@@ -156,4 +170,5 @@
   </section>
 
   <app-detail-panel [vm]="dashboard" [activeView]="activeView()" />
+  }
 </main>

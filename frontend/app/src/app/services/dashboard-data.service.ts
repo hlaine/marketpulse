@@ -1,13 +1,16 @@
-import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Injectable, inject } from '@angular/core';
+import { Observable } from 'rxjs';
 
-import { MOCK_CONSULTING_REQUESTS } from '../mock-data/mock-requests';
-import { ConsultingRequest } from '../models/consulting-request.model';
+import { RequestSnapshot } from '../models/request-record.model';
 
 @Injectable({
   providedIn: 'root'
 })
 export class DashboardDataService {
-  getRequests(): ConsultingRequest[] {
-    return MOCK_CONSULTING_REQUESTS;
+  private readonly http = inject(HttpClient);
+
+  getSnapshot(): Observable<RequestSnapshot> {
+    return this.http.get<RequestSnapshot>('data/requests.json');
   }
 }

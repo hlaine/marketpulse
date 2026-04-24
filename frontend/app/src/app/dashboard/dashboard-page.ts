@@ -1,9 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 
 import { DetailPanelComponent } from '../components/detail-panel/detail-panel';
 import { FilterBarComponent } from '../components/filter-bar/filter-bar';
 import { StatCardComponent } from '../components/stat-card/stat-card';
+import { RequestRecord, RequestSnapshot } from '../models/request-record.model';
 import { DashboardDataService } from '../services/dashboard-data.service';
 import { buildDashboardVm, DashboardFilters, DataPoint, TimeRange, ViewId } from './dashboard.vm';
 
@@ -13,18 +14,39 @@ import { buildDashboardVm, DashboardFilters, DataPoint, TimeRange, ViewId } from
   templateUrl: './dashboard-page.html',
   styleUrl: './dashboard-page.css'
 })
-export class DashboardPageComponent {
+export class DashboardPageComponent implements OnInit {
   private readonly dataService = inject(DashboardDataService);
-  private readonly requests = this.dataService.getRequests();
 
+  protected readonly requests = signal<RequestRecord[]>([]);
+  protected readonly snapshot = signal<RequestSnapshot | null>(null);
+  protected readonly loading = signal(true);
+  protected readonly error = signal<string | null>(null);
   protected readonly filters = signal<DashboardFilters>({
-    timeRange: '30D',
+    timeRange: '1Y',
     sourceKind: 'all'
   });
   protected readonly activeView = signal<ViewId>('volume');
 
-  protected readonly vm = computed(() => buildDashboardVm(this.requests, this.filters()));
-  protected readonly heroRequest = computed(() => this.requests[this.requests.length - 1]);
+  protected readonly vm = computed(() => buildDashboardVm(
+    this.requests(),
+    this.filters(),
+    this.snapshot()?.snapshot_note ?? 'Local SQLite snapshot for frontend analytics.'
+  ));
+  protected readonly heroRequest = computed(() => this.requests()[this.requests().length - 1] ?? null);
+
+  ngOnInit(): void {
+    this.dataService.getSnapshot().subscribe({
+      next: (snapshot) => {
+        this.snapshot.set(snapshot);
+        this.requests.set(snapshot.requests);
+        this.loading.set(false);
+      },
+      error: () => {
+        this.error.set('Could not load the local SQLite snapshot for the dashboard.');
+        this.loading.set(false);
+      }
+    });
+  }
 
   protected setTimeRange(timeRange: TimeRange): void {
     this.filters.update((current) => ({ ...current, timeRange }));
@@ -36,7 +58,7 @@ export class DashboardPageComponent {
 
   protected resetFilters(): void {
     this.filters.set({
-      timeRange: '30D',
+      timeRange: '1Y',
       sourceKind: 'all'
     });
     this.activeView.set('volume');

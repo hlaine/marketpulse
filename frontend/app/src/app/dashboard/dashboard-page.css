@@ -12,6 +12,15 @@
   color: #213843;
 }
 
+.state-panel {
+  max-width: 42rem;
+  padding: 2rem;
+  border-radius: 2rem;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(165, 190, 199, 0.32);
+  box-shadow: 0 30px 60px rgba(103, 130, 142, 0.09);
+}
+
 .hero-panel {
   display: grid;
   grid-template-columns: minmax(0, 1.3fr) minmax(18rem, 0.95fr);
@@ -54,6 +63,13 @@
   margin: 1rem 0 0;
   color: #5f7783;
   font-size: 1.02rem;
+  line-height: 1.6;
+}
+
+.snapshot-note,
+.state-copy {
+  margin: 1rem 0 0;
+  color: #748c97;
   line-height: 1.6;
 }
 

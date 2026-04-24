@@ -1,17 +1,33 @@
 <section class="filter-bar" aria-label="Dashboard filters">
   <div class="filter-group">
     <span class="filter-label">Time range</span>
-    <div class="pill-row">
-      @for (range of timeRanges; track range) {
-        <button
-          class="pill"
-          [class.pill--active]="range === activeTimeRange()"
-          type="button"
-          (click)="timeRangeChange.emit(range)"
-        >
-          {{ range }}
-        </button>
-      }
+    <div class="slider-block">
+      <div class="slider-meta">
+        <strong class="slider-value">{{ timeRanges[selectedIndex()].label }}</strong>
+        <span class="slider-hint">Show requests since this point in time</span>
+      </div>
+
+      <input
+        class="slider"
+        type="range"
+        min="0"
+        [max]="timeRanges.length - 1"
+        step="1"
+        [value]="selectedIndex()"
+        (input)="onSliderChange(($any($event.target).value))"
+        aria-label="Time range"
+      />
+
+      <div class="slider-labels" aria-hidden="true">
+        @for (range of timeRanges; track range.value) {
+          <span
+            class="slider-label"
+            [class.slider-label--active]="range.value === activeTimeRange()"
+          >
+            {{ range.label }}
+          </span>
+        }
+      </div>
     </div>
   </div>
 

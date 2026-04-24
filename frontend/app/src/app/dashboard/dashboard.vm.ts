@@ -1,6 +1,6 @@
-import { ConsultingRequest } from '../models/consulting-request.model';
+import { RequestRecord } from '../models/request-record.model';
 
-export type TimeRange = '24H' | '7D' | '30D' | '90D';
+export type TimeRange = '30D' | '3M' | '1Y' | '5Y' | '10Y';
 export type ViewId = 'volume' | 'roles' | 'remote' | 'quality';
 
 export interface DashboardFilters {
@@ -30,6 +30,7 @@ export interface ViewSummary {
 
 export interface DashboardVm {
   updatedAt: string;
+  snapshotNote: string;
   totalRequests: number;
   availableSourceKinds: string[];
   kpis: KpiMetric[];
@@ -53,11 +54,16 @@ export interface DashboardVm {
 }
 
 const timeRangeMs: Record<TimeRange, number> = {
-  '24H': 24 * 60 * 60 * 1000,
-  '7D': 7 * 24 * 60 * 60 * 1000,
   '30D': 30 * 24 * 60 * 60 * 1000,
-  '90D': 90 * 24 * 60 * 60 * 1000
+  '3M': 90 * 24 * 60 * 60 * 1000,
+  '1Y': 365 * 24 * 60 * 60 * 1000,
+  '5Y': 5 * 365 * 24 * 60 * 60 * 1000,
+  '10Y': 10 * 365 * 24 * 60 * 60 * 1000
 };
+
+function parseDate(value: string | null): number {
+  return value ? new Date(value).getTime() : 0;
+}
 
 function sameDayLabel(iso: string | null): string {
   if (!iso) {
@@ -108,26 +114,50 @@ function toCountPoints(counter: Map<string, number>, total: number): DataPoint[]
     }));
 }
 
-export function filterRequests(requests: ConsultingRequest[], filters: DashboardFilters, now = new Date()): ConsultingRequest[] {
+function effectiveNow(requests: RequestRecord[], fallback = new Date()): Date {
+  const latest = Math.max(...requests.map((item) => parseDate(item.received_at)), 0);
+  return latest ? new Date(latest) : fallback;
+}
+
+function normalizeRemoteMode(value: string | null): string {
+  const cleaned = (value ?? '').trim().toLowerCase();
+
+  if (!cleaned) {
+    return 'unknown';
+  }
+
+  if (cleaned === 'on-site' || cleaned === 'onsite') {
+    return 'onsite';
+  }
+
+  return cleaned;
+}
+
+export function filterRequests(requests: RequestRecord[], filters: DashboardFilters, now = effectiveNow(requests)): RequestRecord[] {
   const startTime = now.getTime() - timeRangeMs[filters.timeRange];
 
   return requests.filter((item) => {
-    const receivedAt = item.source.received_at ? new Date(item.source.received_at).getTime() : 0;
+    const receivedAt = parseDate(item.received_at);
     const inTimeRange = receivedAt >= startTime;
-    const sourceMatches = filters.sourceKind === 'all' || item.source.kind === filters.sourceKind;
+    const sourceMatches = filters.sourceKind === 'all' || item.source_kind === filters.sourceKind;
 
     return inTimeRange && sourceMatches;
   });
 }
 
-export function buildDashboardVm(requests: ConsultingRequest[], filters: DashboardFilters, now = new Date()): DashboardVm {
+export function buildDashboardVm(
+  requests: RequestRecord[],
+  filters: DashboardFilters,
+  snapshotNote = 'Local SQLite snapshot for frontend analytics.',
+  now = effectiveNow(requests)
+): DashboardVm {
   const filtered = filterRequests(requests, filters, now);
   const safeRequests = filtered.length ? filtered : requests;
-  const allSourceKinds = Array.from(new Set(requests.map((item) => item.source.kind))).sort();
+  const allSourceKinds = Array.from(new Set(requests.map((item) => item.source_kind || 'unknown'))).sort();
 
   const volumeByDay = new Map<string, number>();
   for (const item of safeRequests) {
-    const label = sameDayLabel(item.source.received_at);
+    const label = sameDayLabel(item.received_at);
     volumeByDay.set(label, (volumeByDay.get(label) ?? 0) + 1);
   }
 
@@ -144,17 +174,17 @@ export function buildDashboardVm(requests: ConsultingRequest[], filters: Dashboa
   const confidenceValues: number[] = [];
 
   for (const item of safeRequests) {
-    const role = item.demand.primary_role.normalized ?? 'Unknown';
-    const remoteMode = item.demand.remote_mode.normalized ?? 'unknown';
-    const status = item.quality.review_status;
+    const role = item.primary_role?.trim() || 'Unknown';
+    const remoteMode = normalizeRemoteMode(item.remote_mode);
+    const status = item.review_status?.trim() || 'unknown';
 
     roleCounts.set(role, (roleCounts.get(role) ?? 0) + 1);
     remoteCounts.set(remoteMode, (remoteCounts.get(remoteMode) ?? 0) + 1);
     qualityCounts.set(status, (qualityCounts.get(status) ?? 0) + 1);
-    confidenceValues.push(item.quality.overall_confidence);
+    confidenceValues.push(item.overall_confidence ?? 0);
 
-    if (item.demand.commercial.rate_amount) {
-      rateValues.push(item.demand.commercial.rate_amount);
+    if (item.rate_amount) {
+      rateValues.push(item.rate_amount);
     }
   }
 
@@ -174,6 +204,7 @@ export function buildDashboardVm(requests: ConsultingRequest[], filters: Dashboa
       hour: '2-digit',
       minute: '2-digit'
     }).format(now),
+    snapshotNote,
     totalRequests: safeRequests.length,
     availableSourceKinds: ['all', ...allSourceKinds],
     kpis: [

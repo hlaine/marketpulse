@@ -3,9 +3,10 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
-    "build": "ng build",
-    "watch": "ng build --watch --configuration development",
+    "data:sync": "python3 scripts/export_sqlite_data.py",
+    "start": "npm run data:sync && ng serve",
+    "build": "npm run data:sync && ng build",
+    "watch": "npm run data:sync && ng build --watch --configuration development",
     "test": "ng test"
   },
   "private": true,
