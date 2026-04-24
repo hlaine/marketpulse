@@ -1,0 +1,61 @@
+<main class="chat-shell">
+  <section class="chat-frame">
+    <header class="chat-header">
+      <div>
+        <p class="eyebrow">Dataset chat</p>
+        <h1>Fråga Market Pulse</h1>
+        <p>Chatten kör read-only SQL via backend mot den lokala SQLite-snapshoten.</p>
+      </div>
+      <a routerLink="/">Dashboard</a>
+    </header>
+
+    <section class="message-list" aria-live="polite">
+      @for (message of messages(); track $index) {
+        <article
+          class="message"
+          [class.message--user]="message.role === 'user'"
+          [class.message--error]="message.error"
+        >
+          <p>{{ message.content }}</p>
+
+          @if (message.warnings?.length) {
+            <ul class="warning-list">
+              @for (warning of message.warnings; track warning) {
+                <li>{{ warning }}</li>
+              }
+            </ul>
+          }
+
+          @if (message.sql?.length) {
+            <details class="query-details">
+              <summary>SQL och resultat</summary>
+              @for (query of message.sql; track query) {
+                <pre>{{ query }}</pre>
+              }
+              @if (message.rows?.length) {
+                <pre>{{ message.rows | json }}</pre>
+              }
+            </details>
+          }
+        </article>
+      }
+
+      @if (loading()) {
+        <article class="message message--loading">
+          <p>Analyserar...</p>
+        </article>
+      }
+    </section>
+
+    <section class="composer" aria-label="Ställ en fråga">
+      <textarea
+        aria-label="Fråga om datasetet"
+        [value]="draft()"
+        (input)="updateDraft($any($event.target).value)"
+        (keydown)="handleKeydown($event)"
+        rows="3"
+      ></textarea>
+      <button type="button" (click)="sendMessage()" [disabled]="loading() || !draft().trim()">Skicka</button>
+    </section>
+  </section>
+</main>
