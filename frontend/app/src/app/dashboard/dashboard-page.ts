@@ -1,16 +1,14 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 
-import { DetailPanelComponent } from '../components/detail-panel/detail-panel';
 import { FilterBarComponent } from '../components/filter-bar/filter-bar';
-import { StatCardComponent } from '../components/stat-card/stat-card';
 import { RequestRecord, RequestSnapshot } from '../models/request-record.model';
 import { DashboardDataService } from '../services/dashboard-data.service';
-import { buildDashboardVm, DashboardFilters, DataPoint, TimeRange, ViewId } from './dashboard.vm';
+import { buildDashboardVm, DashboardFilters, DataPoint, PieSlice, RoleRemotePoint, TimeRange } from './dashboard.vm';
 
 @Component({
   selector: 'app-dashboard-page',
-  imports: [CommonModule, FilterBarComponent, StatCardComponent, DetailPanelComponent],
+  imports: [CommonModule, FilterBarComponent],
   templateUrl: './dashboard-page.html',
   styleUrl: './dashboard-page.css'
 })
@@ -22,17 +20,14 @@ export class DashboardPageComponent implements OnInit {
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
   protected readonly filters = signal<DashboardFilters>({
-    timeRange: '1Y',
-    sourceKind: 'all'
+    timeRange: '1Y'
   });
-  protected readonly activeView = signal<ViewId>('volume');
 
   protected readonly vm = computed(() => buildDashboardVm(
     this.requests(),
     this.filters(),
     this.snapshot()?.snapshot_note ?? 'Local SQLite snapshot for frontend analytics.'
   ));
-  protected readonly heroRequest = computed(() => this.requests()[this.requests().length - 1] ?? null);
 
   ngOnInit(): void {
     this.dataService.getSnapshot().subscribe({
@@ -49,26 +44,10 @@ export class DashboardPageComponent implements OnInit {
   }
 
   protected setTimeRange(timeRange: TimeRange): void {
-    this.filters.update((current) => ({ ...current, timeRange }));
+    this.filters.set({ timeRange });
   }
 
-  protected setSourceKind(sourceKind: string): void {
-    this.filters.update((current) => ({ ...current, sourceKind }));
-  }
-
-  protected resetFilters(): void {
-    this.filters.set({
-      timeRange: '1Y',
-      sourceKind: 'all'
-    });
-    this.activeView.set('volume');
-  }
-
-  protected selectView(viewId: ViewId): void {
-    this.activeView.set(viewId);
-  }
-
-  protected chartPoints(points: DataPoint[]): string {
+  protected linePoints(points: DataPoint[]): string {
     if (!points.length) {
       return '';
     }
@@ -85,11 +64,31 @@ export class DashboardPageComponent implements OnInit {
       .join(' ');
   }
 
-  protected maxPointValue(points: DataPoint[]): number {
-    return Math.max(...points.map((point) => point.value), 1);
+  protected xPosition(index: number, total: number): number {
+    return total <= 1 ? 50 : (index / (total - 1)) * 100;
   }
 
-  protected totalFromPoints(points: DataPoint[]): number {
-    return points.reduce((sum, point) => sum + point.value, 0);
+  protected yPosition(value: number, points: DataPoint[]): number {
+    const max = Math.max(...points.map((point) => point.value), 1);
+    return 100 - (value / max) * 100;
+  }
+
+  protected barHeight(value: number, max: number): number {
+    return max ? (value / max) * 100 : 0;
+  }
+
+  protected maxTotal(points: RoleRemotePoint[]): number {
+    return Math.max(...points.map((point) => point.total), 1);
+  }
+
+  protected pieSegments(slices: PieSlice[]): Array<PieSlice & { dash: string; rotateOffset: number }> {
+    let offset = 0;
+
+    return slices.map((slice) => {
+      const dash = `${slice.percent} ${100 - slice.percent}`;
+      const rotateOffset = offset;
+      offset += slice.percent;
+      return { ...slice, dash, rotateOffset };
+    });
   }
 }

@@ -10,13 +10,8 @@ import { TimeRange } from '../../dashboard/dashboard.vm';
   styleUrl: './filter-bar.css'
 })
 export class FilterBarComponent {
-  readonly activeTimeRange = input<TimeRange>('30D');
-  readonly activeSourceKind = input('all');
-  readonly sourceKinds = input<string[]>([]);
-
+  readonly activeTimeRange = input<TimeRange>('1Y');
   readonly timeRangeChange = output<TimeRange>();
-  readonly sourceKindChange = output<string>();
-  readonly reset = output<void>();
 
   protected readonly timeRanges: Array<{ value: TimeRange; label: string }> = [
     { value: '30D', label: '30 days' },

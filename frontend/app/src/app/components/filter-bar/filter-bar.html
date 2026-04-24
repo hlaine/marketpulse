@@ -1,48 +1,25 @@
-<section class="filter-bar" aria-label="Dashboard filters">
-  <div class="filter-group">
-    <span class="filter-label">Time range</span>
-    <div class="slider-block">
-      <div class="slider-meta">
-        <strong class="slider-value">{{ timeRanges[selectedIndex()].label }}</strong>
-        <span class="slider-hint">Show requests since this point in time</span>
-      </div>
+<section class="filter-bar" aria-label="Time range">
+  <span class="filter-label">Time range</span>
+  <div class="slider-block">
+    <strong class="slider-value">{{ timeRanges[selectedIndex()].label }}</strong>
 
-      <input
-        class="slider"
-        type="range"
-        min="0"
-        [max]="timeRanges.length - 1"
-        step="1"
-        [value]="selectedIndex()"
-        (input)="onSliderChange(($any($event.target).value))"
-        aria-label="Time range"
-      />
+    <input
+      class="slider"
+      type="range"
+      min="0"
+      [max]="timeRanges.length - 1"
+      step="1"
+      [value]="selectedIndex()"
+      (input)="onSliderChange(($any($event.target).value))"
+      aria-label="Time range"
+    />
 
-      <div class="slider-labels" aria-hidden="true">
-        @for (range of timeRanges; track range.value) {
-          <span
-            class="slider-label"
-            [class.slider-label--active]="range.value === activeTimeRange()"
-          >
-            {{ range.label }}
-          </span>
-        }
-      </div>
+    <div class="slider-labels" aria-hidden="true">
+      @for (range of timeRanges; track range.value) {
+        <span class="slider-label" [class.slider-label--active]="range.value === activeTimeRange()">
+          {{ range.label }}
+        </span>
+      }
     </div>
   </div>
-
-  <label class="filter-group filter-group--select">
-    <span class="filter-label">Source</span>
-    <select
-      class="select"
-      [value]="activeSourceKind()"
-      (change)="sourceKindChange.emit(($any($event.target).value))"
-    >
-      @for (kind of sourceKinds(); track kind) {
-        <option [value]="kind">{{ kind === 'all' ? 'All sources' : kind }}</option>
-      }
-    </select>
-  </label>
-
-  <button class="ghost-action" type="button" (click)="reset.emit()">Reset filters</button>
 </section>

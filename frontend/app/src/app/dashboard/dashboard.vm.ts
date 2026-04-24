@@ -1,56 +1,36 @@
 import { RequestRecord } from '../models/request-record.model';
 
 export type TimeRange = '30D' | '3M' | '1Y' | '5Y' | '10Y';
-export type ViewId = 'volume' | 'roles' | 'remote' | 'quality';
 
 export interface DashboardFilters {
   timeRange: TimeRange;
-  sourceKind: string;
-}
-
-export interface KpiMetric {
-  label: string;
-  value: string;
-  hint: string;
 }
 
 export interface DataPoint {
   label: string;
   value: number;
-  hint: string;
 }
 
-export interface ViewSummary {
-  id: ViewId;
-  title: string;
-  subtitle: string;
-  hero: string;
-  delta: string;
+export interface RoleRemotePoint {
+  label: string;
+  total: number;
+  remoteHybrid: number;
+}
+
+export interface PieSlice {
+  label: string;
+  value: number;
+  percent: number;
 }
 
 export interface DashboardVm {
   updatedAt: string;
   snapshotNote: string;
   totalRequests: number;
-  availableSourceKinds: string[];
-  kpis: KpiMetric[];
-  volume: {
-    summary: ViewSummary;
-    points: DataPoint[];
-  };
-  roles: {
-    summary: ViewSummary;
-    items: DataPoint[];
-  };
-  remote: {
-    summary: ViewSummary;
-    items: DataPoint[];
-  };
-  quality: {
-    summary: ViewSummary;
-    items: DataPoint[];
-    averageConfidence: number;
-  };
+  volumePoints: DataPoint[];
+  ratePoints: DataPoint[];
+  roleRemotePoints: RoleRemotePoint[];
+  roleDistribution: PieSlice[];
 }
 
 const timeRangeMs: Record<TimeRange, number> = {
@@ -84,36 +64,6 @@ function average(values: number[]): number {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
-function percent(part: number, total: number): string {
-  if (!total) {
-    return '0%';
-  }
-
-  return `${Math.round((part / total) * 100)}%`;
-}
-
-function formatConfidence(value: number): string {
-  return `${Math.round(value * 100)}%`;
-}
-
-function formatCurrencySek(value: number): string {
-  return new Intl.NumberFormat('en-SE', {
-    style: 'currency',
-    currency: 'SEK',
-    maximumFractionDigits: 0
-  }).format(value);
-}
-
-function toCountPoints(counter: Map<string, number>, total: number): DataPoint[] {
-  return Array.from(counter.entries())
-    .sort((left, right) => right[1] - left[1])
-    .map(([label, value]) => ({
-      label,
-      value,
-      hint: `${percent(value, total)} of filtered requests`
-    }));
-}
-
 function effectiveNow(requests: RequestRecord[], fallback = new Date()): Date {
   const latest = Math.max(...requests.map((item) => parseDate(item.received_at)), 0);
   return latest ? new Date(latest) : fallback;
@@ -133,16 +83,25 @@ function normalizeRemoteMode(value: string | null): string {
   return cleaned;
 }
 
+function topRoleMap(records: RequestRecord[]): Map<string, number> {
+  const counter = new Map<string, number>();
+
+  for (const item of records) {
+    const role = item.primary_role?.trim() || 'Unknown';
+    counter.set(role, (counter.get(role) ?? 0) + 1);
+  }
+
+  return new Map(
+    Array.from(counter.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+  );
+}
+
 export function filterRequests(requests: RequestRecord[], filters: DashboardFilters, now = effectiveNow(requests)): RequestRecord[] {
   const startTime = now.getTime() - timeRangeMs[filters.timeRange];
 
-  return requests.filter((item) => {
-    const receivedAt = parseDate(item.received_at);
-    const inTimeRange = receivedAt >= startTime;
-    const sourceMatches = filters.sourceKind === 'all' || item.source_kind === filters.sourceKind;
-
-    return inTimeRange && sourceMatches;
-  });
+  return requests.filter((item) => parseDate(item.received_at) >= startTime);
 }
 
 export function buildDashboardVm(
@@ -153,49 +112,52 @@ export function buildDashboardVm(
 ): DashboardVm {
   const filtered = filterRequests(requests, filters, now);
   const safeRequests = filtered.length ? filtered : requests;
-  const allSourceKinds = Array.from(new Set(requests.map((item) => item.source_kind || 'unknown'))).sort();
 
   const volumeByDay = new Map<string, number>();
-  for (const item of safeRequests) {
-    const label = sameDayLabel(item.received_at);
-    volumeByDay.set(label, (volumeByDay.get(label) ?? 0) + 1);
-  }
-
-  const volumePoints = Array.from(volumeByDay.entries()).map(([label, value]) => ({
-    label,
-    value,
-    hint: `${value} requests received`
-  }));
-
-  const roleCounts = new Map<string, number>();
-  const remoteCounts = new Map<string, number>();
-  const qualityCounts = new Map<string, number>();
-  const rateValues: number[] = [];
-  const confidenceValues: number[] = [];
+  const ratesByDay = new Map<string, number[]>();
+  const roleCounts = topRoleMap(safeRequests);
+  const roleRemoteCounts = new Map<string, { total: number; remoteHybrid: number }>();
 
   for (const item of safeRequests) {
-    const role = item.primary_role?.trim() || 'Unknown';
-    const remoteMode = normalizeRemoteMode(item.remote_mode);
-    const status = item.review_status?.trim() || 'unknown';
-
-    roleCounts.set(role, (roleCounts.get(role) ?? 0) + 1);
-    remoteCounts.set(remoteMode, (remoteCounts.get(remoteMode) ?? 0) + 1);
-    qualityCounts.set(status, (qualityCounts.get(status) ?? 0) + 1);
-    confidenceValues.push(item.overall_confidence ?? 0);
+    const dayLabel = sameDayLabel(item.received_at);
+    volumeByDay.set(dayLabel, (volumeByDay.get(dayLabel) ?? 0) + 1);
 
     if (item.rate_amount) {
-      rateValues.push(item.rate_amount);
+      const bucket = ratesByDay.get(dayLabel) ?? [];
+      bucket.push(item.rate_amount);
+      ratesByDay.set(dayLabel, bucket);
+    }
+
+    const role = item.primary_role?.trim() || 'Unknown';
+    if (roleCounts.has(role)) {
+      const remoteMode = normalizeRemoteMode(item.remote_mode);
+      const entry = roleRemoteCounts.get(role) ?? { total: 0, remoteHybrid: 0 };
+      entry.total += 1;
+      if (remoteMode === 'remote' || remoteMode === 'hybrid') {
+        entry.remoteHybrid += 1;
+      }
+      roleRemoteCounts.set(role, entry);
     }
   }
 
-  const rolePoints = toCountPoints(roleCounts, safeRequests.length).slice(0, 5);
-  const remotePoints = toCountPoints(remoteCounts, safeRequests.length);
-  const qualityPoints = toCountPoints(qualityCounts, safeRequests.length);
-  const avgConfidence = average(confidenceValues);
-  const avgRate = average(rateValues);
-  const topRole = rolePoints[0];
-  const topRemote = remotePoints[0];
-  const reviewNeeded = (qualityCounts.get('needs_review') ?? 0) + (qualityCounts.get('failed') ?? 0);
+  const volumePoints = Array.from(volumeByDay.entries()).map(([label, value]) => ({ label, value }));
+  const ratePoints = Array.from(ratesByDay.entries()).map(([label, values]) => ({
+    label,
+    value: Math.round(average(values))
+  }));
+
+  const roleRemotePoints: RoleRemotePoint[] = Array.from(roleCounts.entries()).map(([label, total]) => ({
+    label,
+    total,
+    remoteHybrid: roleRemoteCounts.get(label)?.remoteHybrid ?? 0
+  }));
+
+  const totalRoles = roleRemotePoints.reduce((sum, item) => sum + item.total, 0);
+  const roleDistribution: PieSlice[] = roleRemotePoints.map((item) => ({
+    label: item.label,
+    value: item.total,
+    percent: totalRoles ? (item.total / totalRoles) * 100 : 0
+  }));
 
   return {
     updatedAt: new Intl.DateTimeFormat('en', {
@@ -206,69 +168,9 @@ export function buildDashboardVm(
     }).format(now),
     snapshotNote,
     totalRequests: safeRequests.length,
-    availableSourceKinds: ['all', ...allSourceKinds],
-    kpis: [
-      {
-        label: 'Filtered requests',
-        value: String(safeRequests.length),
-        hint: `${filters.timeRange} window`
-      },
-      {
-        label: 'Average confidence',
-        value: formatConfidence(avgConfidence),
-        hint: 'Across extraction quality'
-      },
-      {
-        label: 'Average rate',
-        value: avgRate ? formatCurrencySek(avgRate) : 'N/A',
-        hint: 'Hourly rate, where present'
-      },
-      {
-        label: 'Needs review',
-        value: String(reviewNeeded),
-        hint: 'Requests that need human attention'
-      }
-    ],
-    volume: {
-      summary: {
-        id: 'volume',
-        title: 'Request volume',
-        subtitle: 'Incoming consulting requests over time',
-        hero: `${safeRequests.length} requests`,
-        delta: volumePoints.length ? `${volumePoints[volumePoints.length - 1]?.label} latest point` : 'No volume data'
-      },
-      points: volumePoints
-    },
-    roles: {
-      summary: {
-        id: 'roles',
-        title: 'Role distribution',
-        subtitle: 'Most requested primary roles',
-        hero: topRole ? topRole.label : 'No role data',
-        delta: topRole ? `${topRole.value} matching requests` : 'No role data'
-      },
-      items: rolePoints
-    },
-    remote: {
-      summary: {
-        id: 'remote',
-        title: 'Remote mode mix',
-        subtitle: 'How assignments expect people to work',
-        hero: topRemote ? topRemote.label : 'No remote data',
-        delta: topRemote ? topRemote.hint : 'No remote data'
-      },
-      items: remotePoints
-    },
-    quality: {
-      summary: {
-        id: 'quality',
-        title: 'Extraction quality',
-        subtitle: 'Confidence and review readiness',
-        hero: formatConfidence(avgConfidence),
-        delta: `${reviewNeeded} requests need review`
-      },
-      items: qualityPoints,
-      averageConfidence: avgConfidence
-    }
+    volumePoints,
+    ratePoints,
+    roleRemotePoints,
+    roleDistribution
   };
 }
