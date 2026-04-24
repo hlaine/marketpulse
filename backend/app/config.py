@@ -12,11 +12,19 @@ REPO_ROOT = BACKEND_DIR.parent
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="MARKET_PULSE_", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_prefix="MARKET_PULSE_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
     app_name: str = "Market Pulse Backend"
     llm_provider: str = "mock"
     llm_model: str = "mock-extractor-v1"
+    llm_base_url: str | None = None
+    llm_api_key: str | None = None
+    llm_timeout_seconds: float = 30.0
     prompt_version: str = "consulting_request_v1_mock"
     database_path: Path = REPO_ROOT / "db" / "marketpulse.sqlite3"
 

@@ -174,6 +174,10 @@ def ingest_text_payload(payload: ExtractionRequest) -> IngestedSource:
 
 def ingest_file(path: str | Path) -> IngestedSource:
     file_path = Path(path).expanduser().resolve()
+    if not file_path.exists():
+        raise FileNotFoundError(
+            f"Input file not found: {file_path}. Check that the path exists relative to {Path.cwd()} and that your test data is present."
+        )
     if file_path.suffix.lower() == ".json":
         return ingest_email_json(file_path)
     text = file_path.read_text(encoding="utf-8")

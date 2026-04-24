@@ -20,7 +20,12 @@ class ApiTests(unittest.TestCase):
     def test_extract_endpoint_accepts_email_json_upload(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             app = create_app(
-                Settings(database_path=Path(temp_dir) / "db" / "marketpulse.sqlite3")
+                Settings(
+                    database_path=Path(temp_dir) / "db" / "marketpulse.sqlite3",
+                    llm_provider="mock",
+                    llm_model="mock-extractor-v1",
+                    prompt_version="consulting_request_v1_mock",
+                )
             )
             client = TestClient(app)
 
@@ -45,7 +50,12 @@ class ApiTests(unittest.TestCase):
     def test_extract_endpoint_accepts_json_payload(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             app = create_app(
-                Settings(database_path=Path(temp_dir) / "db" / "marketpulse.sqlite3")
+                Settings(
+                    database_path=Path(temp_dir) / "db" / "marketpulse.sqlite3",
+                    llm_provider="mock",
+                    llm_model="mock-extractor-v1",
+                    prompt_version="consulting_request_v1_mock",
+                )
             )
             client = TestClient(app)
 

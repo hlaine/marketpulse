@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import json
 import re
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 
+import httpx
+from pydantic import BaseModel, ValidationError
+
+from app.config import Settings
 from app.contracts import (
     Commercial,
     ConsultingRequestV1,
@@ -16,7 +21,7 @@ from app.contracts import (
     TaggedValue,
     TechnologyValue,
 )
-from app.models import IngestedSource
+from app.models import ExtractionResult, IngestedSource, ProviderUsage
 
 
 ROLE_PATTERNS = [
@@ -101,6 +106,15 @@ SECTOR_HINTS = {
 CITY_NAMES = ["Stockholm", "Göteborg", "Malmö"]
 
 
+class ProviderError(RuntimeError):
+    pass
+
+
+class LlmExtractionPayload(BaseModel):
+    demand: Demand
+    quality: Quality
+
+
 def _make_evidence(text: str, source_part: str = "message") -> list[Evidence]:
     snippet = text.strip()
     if not snippet:
@@ -128,7 +142,7 @@ def _normalize_start(text: str | None) -> tuple[str | None, str | None]:
     if not text:
         return None, None
     value = text.strip()
-    if value.upper() == "ASAP" or value.upper() == "TBD":
+    if value.upper() in {"ASAP", "TBD"}:
         return None, value
     if re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
         return f"{value}T00:00:00Z", value
@@ -285,9 +299,61 @@ def _build_summary(
     return Summary(text=text, confidence=0.82 if role else 0.45)
 
 
+def _extract_json_string(text: str) -> str:
+    stripped = text.strip()
+    if stripped.startswith("```"):
+        stripped = re.sub(r"^```(?:json)?\s*", "", stripped)
+        stripped = re.sub(r"\s*```$", "", stripped)
+    start = stripped.find("{")
+    end = stripped.rfind("}")
+    if start == -1 or end == -1 or end < start:
+        raise ProviderError("Model response did not contain a JSON object.")
+    return stripped[start : end + 1]
+
+
+def _extract_message_text(payload: dict) -> str:
+    choices = payload.get("choices") or []
+    if not choices:
+        raise ProviderError("Provider response did not contain any choices.")
+    message = choices[0].get("message") or {}
+    content = message.get("content")
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        text_parts = []
+        for part in content:
+            if isinstance(part, dict) and part.get("type") == "text":
+                text_parts.append(part.get("text", ""))
+        if text_parts:
+            return "\n".join(text_parts)
+    raise ProviderError("Provider response did not contain text content.")
+
+
+def _build_provider_result(
+    source: IngestedSource,
+    payload: LlmExtractionPayload,
+    model_name: str,
+    prompt_version: str,
+) -> ExtractionResult:
+    return ExtractionResult(
+        record=ConsultingRequestV1(
+            request_id=source.request_id,
+            source=source.source,
+            content=source.content,
+            demand=payload.demand,
+            quality=payload.quality,
+            processing=Processing(
+                processed_at="1970-01-01T00:00:00Z",
+                extractor_model=model_name,
+                prompt_version=prompt_version,
+            ),
+        )
+    )
+
+
 class ExtractorProvider(ABC):
     @abstractmethod
-    def extract_structured_request(self, source: IngestedSource) -> ConsultingRequestV1:
+    def extract_structured_request(self, source: IngestedSource) -> ExtractionResult:
         raise NotImplementedError
 
 
@@ -300,7 +366,7 @@ class MockExtractorProvider(ExtractorProvider):
         self.model_name = model_name
         self.prompt_version = prompt_version
 
-    def extract_structured_request(self, source: IngestedSource) -> ConsultingRequestV1:
+    def extract_structured_request(self, source: IngestedSource) -> ExtractionResult:
         text = source.extracted_text
         role, role_evidence = _extract_role(text)
         seniority, seniority_raw, seniority_evidence, seniority_confidence = (
@@ -332,10 +398,7 @@ class MockExtractorProvider(ExtractorProvider):
             "ok" if overall_confidence >= 0.8 and not warnings else "partial"
         )
 
-        return ConsultingRequestV1(
-            request_id=source.request_id,
-            source=source.source,
-            content=source.content,
+        payload = LlmExtractionPayload(
             demand=Demand(
                 primary_role=TaggedValue(
                     raw=role,
@@ -374,9 +437,125 @@ class MockExtractorProvider(ExtractorProvider):
                 review_status=review_status,
                 warnings=warnings,
             ),
-            processing=Processing(
-                processed_at="1970-01-01T00:00:00Z",
-                extractor_model=self.model_name,
-                prompt_version=self.prompt_version,
-            ),
         )
+        return _build_provider_result(
+            source, payload, self.model_name, self.prompt_version
+        )
+
+
+class OpenAICompatibleExtractorProvider(ExtractorProvider):
+    def __init__(
+        self,
+        base_url: str,
+        api_key: str,
+        model_name: str,
+        prompt_version: str,
+        timeout_seconds: float = 30.0,
+        http_client: httpx.Client | None = None,
+    ) -> None:
+        self.base_url = base_url.rstrip("/")
+        self.api_key = api_key
+        self.model_name = model_name
+        self.prompt_version = prompt_version
+        self.http_client = http_client or httpx.Client(timeout=timeout_seconds)
+
+    def _build_messages(self, source: IngestedSource) -> list[dict[str, str]]:
+        schema = json.dumps(
+            LlmExtractionPayload.model_json_schema(), ensure_ascii=False
+        )
+        source_payload = json.dumps(
+            {
+                "request_id": source.request_id,
+                "source": source.source.model_dump(mode="json"),
+                "content": source.content.model_dump(mode="json"),
+                "extracted_text": source.extracted_text,
+            },
+            ensure_ascii=False,
+        )
+        system_prompt = (
+            "You analyze consulting demand from arbitrary input formats. "
+            "The backend may provide raw text, HTML, Markdown, PDFs, CSV/TSV, or unknown JSON exports. "
+            "Infer whether the source appears to be an email, web page, document, portal posting, "
+            "chat message, manual note, or other source. "
+            "When a JSON or export-like input contains fields such as subject, date, from, sender, body, "
+            "html, text, attachments, or url, use those fields as evidence for source and content metadata. "
+            "Use export date fields for source.received_at when clearly present. "
+            "Use subject/title/name fields for content.title when clearly present. "
+            "Return JSON only. Use the provided schema strictly. "
+            "Do not invent facts. Prefer nulls or warnings when data is unclear."
+        )
+        user_prompt = (
+            f"Prompt version: {self.prompt_version}\n"
+            "Return a JSON object matching this schema:\n"
+            f"{schema}\n\n"
+            "Source payload:\n"
+            f"{source_payload}"
+        )
+        return [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+
+    def extract_structured_request(self, source: IngestedSource) -> ExtractionResult:
+        response = self.http_client.post(
+            f"{self.base_url}/chat/completions",
+            headers={"Authorization": f"Bearer {self.api_key}"},
+            json={
+                "model": self.model_name,
+                "temperature": 0,
+                "response_format": {"type": "json_object"},
+                "messages": self._build_messages(source),
+            },
+        )
+        response.raise_for_status()
+        payload = response.json()
+        usage_payload = payload.get("usage") or {}
+        content = _extract_message_text(payload)
+        try:
+            parsed = json.loads(_extract_json_string(content))
+        except json.JSONDecodeError as exc:
+            raise ProviderError("Model returned invalid JSON.") from exc
+        try:
+            extraction = LlmExtractionPayload.model_validate(parsed)
+        except ValidationError as exc:
+            raise ProviderError(
+                "Model response did not match extraction schema."
+            ) from exc
+        result = _build_provider_result(
+            source, extraction, self.model_name, self.prompt_version
+        )
+        if any(
+            usage_payload.get(key) is not None
+            for key in ["prompt_tokens", "completion_tokens", "total_tokens"]
+        ):
+            result.usage = ProviderUsage(
+                input_tokens=usage_payload.get("prompt_tokens"),
+                output_tokens=usage_payload.get("completion_tokens"),
+                total_tokens=usage_payload.get("total_tokens"),
+            )
+        return result
+
+
+def build_extractor_provider(settings: Settings) -> ExtractorProvider:
+    if settings.llm_provider == "mock":
+        return MockExtractorProvider(
+            model_name=settings.llm_model,
+            prompt_version=settings.prompt_version,
+        )
+    if settings.llm_provider == "openai_compatible":
+        if not settings.llm_base_url:
+            raise ProviderError(
+                "MARKET_PULSE_LLM_BASE_URL is required for openai_compatible provider."
+            )
+        if not settings.llm_api_key:
+            raise ProviderError(
+                "MARKET_PULSE_LLM_API_KEY is required for openai_compatible provider."
+            )
+        return OpenAICompatibleExtractorProvider(
+            base_url=settings.llm_base_url,
+            api_key=settings.llm_api_key,
+            model_name=settings.llm_model,
+            prompt_version=settings.prompt_version,
+            timeout_seconds=settings.llm_timeout_seconds,
+        )
+    raise ProviderError(f"Unsupported LLM provider: {settings.llm_provider}")

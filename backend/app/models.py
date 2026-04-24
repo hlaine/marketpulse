@@ -35,6 +35,17 @@ class ExtractionRequest(BaseModel):
     received_at: str | None = None
 
 
+class ProviderUsage(BaseModel):
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    total_tokens: int | None = None
+
+
+class ExtractionResult(BaseModel):
+    record: ConsultingRequestV1
+    usage: ProviderUsage | None = None
+
+
 class StoredRecord(BaseModel):
     record: ConsultingRequestV1
     database_path: Path

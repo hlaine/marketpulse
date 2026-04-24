@@ -30,7 +30,12 @@ class PipelineTests(unittest.TestCase):
     def test_pipeline_processes_email_json_and_persists_record(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             database_path = Path(temp_dir) / "db" / "marketpulse.sqlite3"
-            settings = Settings(database_path=database_path)
+            settings = Settings(
+                database_path=database_path,
+                llm_provider="mock",
+                llm_model="mock-extractor-v1",
+                prompt_version="consulting_request_v1_mock",
+            )
             pipeline = ExtractionPipeline(settings)
             result = pipeline.process_file(SAMPLE_EMAIL)
 
@@ -57,7 +62,12 @@ class PipelineTests(unittest.TestCase):
     def test_pipeline_populates_technology_table_and_aggregate_views(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             database_path = Path(temp_dir) / "db" / "marketpulse.sqlite3"
-            settings = Settings(database_path=database_path)
+            settings = Settings(
+                database_path=database_path,
+                llm_provider="mock",
+                llm_model="mock-extractor-v1",
+                prompt_version="consulting_request_v1_mock",
+            )
             pipeline = ExtractionPipeline(settings)
             pipeline.process_file(SAMPLE_EMAIL)
             pipeline.process_file(SECOND_EMAIL)
