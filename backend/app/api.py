@@ -28,7 +28,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             payload = ExtractionRequest.model_validate(await request.json())
             return pipeline.process_text_request(payload)
         if file is not None:
-            temp_path = active_settings.storage_root / "raw" / f"upload-{file.filename}"
+            temp_path = active_settings.database_path.parent / f"upload-{file.filename}"
             temp_path.parent.mkdir(parents=True, exist_ok=True)
             temp_path.write_bytes(await file.read())
             return pipeline.process_file(temp_path)

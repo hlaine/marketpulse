@@ -18,11 +18,11 @@ class Settings(BaseSettings):
     llm_provider: str = "mock"
     llm_model: str = "mock-extractor-v1"
     prompt_version: str = "consulting_request_v1_mock"
-    storage_root: Path = REPO_ROOT / "data"
+    database_path: Path = REPO_ROOT / "db" / "marketpulse.sqlite3"
 
-    @field_validator("storage_root", mode="before")
+    @field_validator("database_path", mode="before")
     @classmethod
-    def expand_storage_root(cls, value: str | Path) -> Path:
+    def expand_database_path(cls, value: str | Path) -> Path:
         return Path(value).expanduser().resolve()
 
 

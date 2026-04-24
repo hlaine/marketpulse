@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
@@ -13,6 +14,9 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 SAMPLE_EMAIL = (
     REPO_ROOT / "data" / "emails" / "0003_Ny förfrågan  brådskande Backend Enginee.json"
 )
+SECOND_EMAIL = (
+    REPO_ROOT / "data" / "emails" / "0177_ASAP AI Engineer  AIML  Fintech.json"
+)
 
 
 class PipelineTests(unittest.TestCase):
@@ -25,7 +29,8 @@ class PipelineTests(unittest.TestCase):
 
     def test_pipeline_processes_email_json_and_persists_record(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            settings = Settings(storage_root=Path(temp_dir))
+            database_path = Path(temp_dir) / "db" / "marketpulse.sqlite3"
+            settings = Settings(database_path=database_path)
             pipeline = ExtractionPipeline(settings)
             result = pipeline.process_file(SAMPLE_EMAIL)
 
@@ -37,7 +42,56 @@ class PipelineTests(unittest.TestCase):
             self.assertEqual(result.demand.remote_mode.normalized, "onsite")
             self.assertEqual(result.demand.commercial.duration_months, 6)
             self.assertEqual(result.demand.commercial.rate_amount, 850)
-            self.assertTrue((Path(temp_dir) / "requests" / "req-0003.json").exists())
+            self.assertTrue(database_path.exists())
+
+            with sqlite3.connect(database_path) as connection:
+                row = connection.execute(
+                    "SELECT primary_role, sector FROM requests WHERE request_id = ?",
+                    ("req-0003",),
+                ).fetchone()
+
+            self.assertIsNotNone(row)
+            self.assertEqual(row[0], "Backend Engineer")
+            self.assertEqual(row[1], "private")
+
+    def test_pipeline_populates_technology_table_and_aggregate_views(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database_path = Path(temp_dir) / "db" / "marketpulse.sqlite3"
+            settings = Settings(database_path=database_path)
+            pipeline = ExtractionPipeline(settings)
+            pipeline.process_file(SAMPLE_EMAIL)
+            pipeline.process_file(SECOND_EMAIL)
+
+            with sqlite3.connect(database_path) as connection:
+                technology_rows = connection.execute(
+                    """
+                    SELECT normalized_value, category
+                    FROM request_technologies
+                    WHERE request_id = ?
+                    ORDER BY position
+                    """,
+                    ("req-0003",),
+                ).fetchall()
+                role_summary = connection.execute(
+                    "SELECT request_count FROM demand_by_role WHERE primary_role = ?",
+                    ("Backend Engineer",),
+                ).fetchone()
+                aws_summary = connection.execute(
+                    "SELECT request_count FROM demand_by_technology WHERE technology = ?",
+                    ("AWS",),
+                ).fetchone()
+                month_summary = connection.execute(
+                    "SELECT request_count FROM demand_monthly WHERE year_month = ? AND primary_role = ?",
+                    ("2025-04", "AI Engineer"),
+                ).fetchone()
+
+            self.assertEqual(
+                [(row[0], row[1]) for row in technology_rows],
+                [("Docker", "tool"), ("AWS", "cloud"), ("Java", "language")],
+            )
+            self.assertEqual(role_summary[0], 1)
+            self.assertEqual(aws_summary[0], 2)
+            self.assertEqual(month_summary[0], 1)
 
 
 if __name__ == "__main__":

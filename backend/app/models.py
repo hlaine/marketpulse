@@ -37,8 +37,7 @@ class ExtractionRequest(BaseModel):
 
 class StoredRecord(BaseModel):
     record: ConsultingRequestV1
-    raw_payload_path: Path | None = None
-    record_path: Path
+    database_path: Path
 
     model_config = {"arbitrary_types_allowed": True}
 

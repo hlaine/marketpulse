@@ -19,7 +19,9 @@ SAMPLE_EMAIL = (
 class ApiTests(unittest.TestCase):
     def test_extract_endpoint_accepts_email_json_upload(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            app = create_app(Settings(storage_root=Path(temp_dir)))
+            app = create_app(
+                Settings(database_path=Path(temp_dir) / "db" / "marketpulse.sqlite3")
+            )
             client = TestClient(app)
 
             with SAMPLE_EMAIL.open("rb") as handle:
@@ -42,7 +44,9 @@ class ApiTests(unittest.TestCase):
 
     def test_extract_endpoint_accepts_json_payload(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            app = create_app(Settings(storage_root=Path(temp_dir)))
+            app = create_app(
+                Settings(database_path=Path(temp_dir) / "db" / "marketpulse.sqlite3")
+            )
             client = TestClient(app)
 
             response = client.post(

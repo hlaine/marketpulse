@@ -8,7 +8,7 @@ from app.contracts import ConsultingRequestV1, Processing
 from app.ingest import ingest_file, ingest_text_payload
 from app.llm import ExtractorProvider, MockExtractorProvider
 from app.models import ExtractionRequest, IngestedSource
-from app.storage import FileStorage
+from app.storage import SQLiteStorage
 
 
 class ExtractionPipeline:
@@ -16,14 +16,14 @@ class ExtractionPipeline:
         self,
         settings: Settings,
         provider: ExtractorProvider | None = None,
-        storage: FileStorage | None = None,
+        storage: SQLiteStorage | None = None,
     ) -> None:
         self.settings = settings
         self.provider = provider or MockExtractorProvider(
             model_name=settings.llm_model,
             prompt_version=settings.prompt_version,
         )
-        self.storage = storage or FileStorage(settings.storage_root)
+        self.storage = storage or SQLiteStorage(settings.database_path)
 
     def process_ingested(self, source: IngestedSource) -> ConsultingRequestV1:
         record = self.provider.extract_structured_request(source)
@@ -35,7 +35,7 @@ class ExtractionPipeline:
             extractor_model=self.settings.llm_model,
             prompt_version=self.settings.prompt_version,
         )
-        self.storage.save(record, source)
+        self.storage.save(record)
         return record
 
     def process_file(self, path: str | Path) -> ConsultingRequestV1:
