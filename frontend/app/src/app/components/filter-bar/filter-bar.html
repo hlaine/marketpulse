@@ -1,0 +1,32 @@
+<section class="filter-bar" aria-label="Dashboard filters">
+  <div class="filter-group">
+    <span class="filter-label">Time range</span>
+    <div class="pill-row">
+      @for (range of timeRanges; track range) {
+        <button
+          class="pill"
+          [class.pill--active]="range === activeTimeRange()"
+          type="button"
+          (click)="timeRangeChange.emit(range)"
+        >
+          {{ range }}
+        </button>
+      }
+    </div>
+  </div>
+
+  <label class="filter-group filter-group--select">
+    <span class="filter-label">Source</span>
+    <select
+      class="select"
+      [value]="activeSourceKind()"
+      (change)="sourceKindChange.emit(($any($event.target).value))"
+    >
+      @for (kind of sourceKinds(); track kind) {
+        <option [value]="kind">{{ kind === 'all' ? 'All sources' : kind }}</option>
+      }
+    </select>
+  </label>
+
+  <button class="ghost-action" type="button" (click)="reset.emit()">Reset filters</button>
+</section>

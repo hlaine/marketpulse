@@ -1,0 +1,90 @@
+.stat-card {
+  border-radius: 1.75rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(247, 251, 252, 0.96)),
+    #ffffff;
+  border: 1px solid rgba(174, 198, 206, 0.35);
+  box-shadow: 0 24px 44px rgba(90, 120, 134, 0.12);
+  overflow: hidden;
+}
+
+.stat-card--selected {
+  border-color: rgba(73, 137, 160, 0.5);
+  box-shadow: 0 26px 52px rgba(67, 121, 140, 0.18);
+}
+
+.card-hitbox {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  color: inherit;
+  padding: 1.35rem;
+}
+
+.card-hitbox:focus-visible {
+  outline: 2px solid #5b96ac;
+  outline-offset: -2px;
+}
+
+.card-head,
+.card-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.card-head {
+  align-items: start;
+  margin-bottom: 1rem;
+}
+
+.card-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #203945;
+}
+
+.card-subtitle {
+  margin: 0.3rem 0 0;
+  color: #67808c;
+  font-size: 0.92rem;
+}
+
+.card-summary {
+  align-items: baseline;
+  margin-bottom: 1.25rem;
+}
+
+.card-hero {
+  font-size: clamp(1.35rem, 2vw, 2.2rem);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: #1a3540;
+}
+
+.card-delta {
+  max-width: 9rem;
+  text-align: right;
+  color: #61818f;
+  font-size: 0.82rem;
+}
+
+.card-badge {
+  border-radius: 999px;
+  padding: 0.38rem 0.66rem;
+  background: #edf5f7;
+  color: #557381;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.stat-card--selected .card-badge {
+  background: #d8ebf1;
+  color: #21586a;
+}
+
+.card-content {
+  min-height: 11rem;
+}

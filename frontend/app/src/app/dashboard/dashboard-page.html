@@ -1,0 +1,159 @@
+@let dashboard = vm();
+@let selectedRequest = heroRequest();
+
+<main class="dashboard-shell">
+  <section class="hero-panel">
+    <div class="hero-copy">
+      <p class="eyebrow">Public dashboard</p>
+      <h1>Market Pulse</h1>
+      <p class="hero-summary">
+        A clean overview of incoming consulting demand, built on mock extraction data shaped after the current contract.
+      </p>
+    </div>
+
+    <div class="hero-meta">
+      <div>
+        <span class="meta-label">Last updated</span>
+        <strong>{{ dashboard.updatedAt }}</strong>
+      </div>
+      <div>
+        <span class="meta-label">Latest request</span>
+        <strong>{{ selectedRequest.demand.primary_role.normalized }}</strong>
+      </div>
+      <div>
+        <span class="meta-label">Latest summary</span>
+        <p>{{ selectedRequest.demand.summary.text }}</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="kpi-row" aria-label="Key figures">
+    @for (kpi of dashboard.kpis; track kpi.label) {
+      <article class="kpi-card">
+        <span class="kpi-label">{{ kpi.label }}</span>
+        <strong class="kpi-value">{{ kpi.value }}</strong>
+        <span class="kpi-hint">{{ kpi.hint }}</span>
+      </article>
+    }
+  </section>
+
+  <app-filter-bar
+    [activeTimeRange]="filters().timeRange"
+    [activeSourceKind]="filters().sourceKind"
+    [sourceKinds]="dashboard.availableSourceKinds"
+    (timeRangeChange)="setTimeRange($event)"
+    (sourceKindChange)="setSourceKind($event)"
+    (reset)="resetFilters()"
+  />
+
+  <section class="card-grid">
+    <app-stat-card
+      [title]="dashboard.volume.summary.title"
+      [subtitle]="dashboard.volume.summary.subtitle"
+      [hero]="dashboard.volume.summary.hero"
+      [delta]="dashboard.volume.summary.delta"
+      [selected]="activeView() === 'volume'"
+      (select)="selectView('volume')"
+    >
+      <div class="line-chart" aria-hidden="true">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+          <polyline [attr.points]="chartPoints(dashboard.volume.points)" />
+          @for (point of dashboard.volume.points; track point.label) {
+            <circle
+              [attr.cx]="dashboard.volume.points.length === 1 ? 50 : ($index / (dashboard.volume.points.length - 1)) * 100"
+              [attr.cy]="100 - (point.value / maxPointValue(dashboard.volume.points)) * 100"
+              r="3"
+            />
+          }
+        </svg>
+      </div>
+
+      <div class="x-axis">
+        @for (point of dashboard.volume.points; track point.label) {
+          <button class="axis-chip" type="button" (click)="selectView('volume')">{{ point.label }}</button>
+        }
+      </div>
+    </app-stat-card>
+
+    <app-stat-card
+      [title]="dashboard.roles.summary.title"
+      [subtitle]="dashboard.roles.summary.subtitle"
+      [hero]="dashboard.roles.summary.hero"
+      [delta]="dashboard.roles.summary.delta"
+      [selected]="activeView() === 'roles'"
+      (select)="selectView('roles')"
+    >
+      <div class="bar-list">
+        @for (item of dashboard.roles.items; track item.label) {
+          <button class="bar-row" type="button" (click)="selectView('roles')">
+            <span class="bar-copy">
+              <strong>{{ item.label }}</strong>
+              <small>{{ item.hint }}</small>
+            </span>
+            <span class="bar-track">
+              <span class="bar-fill" [style.width.%]="(item.value / totalFromPoints(dashboard.roles.items)) * 100"></span>
+            </span>
+            <span class="bar-value">{{ item.value }}</span>
+          </button>
+        }
+      </div>
+    </app-stat-card>
+
+    <app-stat-card
+      [title]="dashboard.remote.summary.title"
+      [subtitle]="dashboard.remote.summary.subtitle"
+      [hero]="dashboard.remote.summary.hero"
+      [delta]="dashboard.remote.summary.delta"
+      [selected]="activeView() === 'remote'"
+      (select)="selectView('remote')"
+    >
+      <div class="segmented-chart" role="presentation">
+        @for (item of dashboard.remote.items; track item.label) {
+          <button
+            class="segment"
+            type="button"
+            (click)="selectView('remote')"
+            [style.flex]="item.value"
+          >
+            <span>{{ item.label }}</span>
+            <strong>{{ item.value }}</strong>
+          </button>
+        }
+      </div>
+      <div class="legend-row">
+        @for (item of dashboard.remote.items; track item.label) {
+          <span class="legend-item">{{ item.label }} · {{ item.hint }}</span>
+        }
+      </div>
+    </app-stat-card>
+
+    <app-stat-card
+      [title]="dashboard.quality.summary.title"
+      [subtitle]="dashboard.quality.summary.subtitle"
+      [hero]="dashboard.quality.summary.hero"
+      [delta]="dashboard.quality.summary.delta"
+      [selected]="activeView() === 'quality'"
+      (select)="selectView('quality')"
+    >
+      <div class="quality-meter" aria-hidden="true">
+        <div class="quality-ring">
+          <div class="quality-core">
+            <strong>{{ dashboard.quality.summary.hero }}</strong>
+            <span>avg confidence</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="quality-status-list">
+        @for (item of dashboard.quality.items; track item.label) {
+          <button class="status-pill" type="button" (click)="selectView('quality')">
+            <span>{{ item.label }}</span>
+            <strong>{{ item.value }}</strong>
+          </button>
+        }
+      </div>
+    </app-stat-card>
+  </section>
+
+  <app-detail-panel [vm]="dashboard" [activeView]="activeView()" />
+</main>

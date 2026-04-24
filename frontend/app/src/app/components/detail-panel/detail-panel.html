@@ -1,0 +1,19 @@
+<section class="detail-panel" aria-live="polite">
+  <div class="detail-copy">
+    <p class="detail-eyebrow">Selected view</p>
+    <h2>{{ title() }}</h2>
+    <p class="detail-summary">{{ summary() }}</p>
+  </div>
+
+  <div class="detail-list" role="list">
+    @for (item of detailItems(); track item.label) {
+      <article class="detail-item" role="listitem">
+        <div>
+          <p class="detail-label">{{ item.label }}</p>
+          <p class="detail-hint">{{ item.hint }}</p>
+        </div>
+        <strong class="detail-value">{{ item.value }}</strong>
+      </article>
+    }
+  </div>
+</section>
