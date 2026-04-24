@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     llm_timeout_seconds: float = 30.0
     prompt_version: str = "consulting_request_v1_mock"
     database_path: Path = REPO_ROOT / "db" / "marketpulse.sqlite3"
+    upload_max_bytes: int = 10 * 1024 * 1024
 
     @field_validator("database_path", mode="before")
     @classmethod

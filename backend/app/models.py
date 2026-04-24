@@ -46,6 +46,13 @@ class ExtractionResult(BaseModel):
     usage: ProviderUsage | None = None
 
 
+class DocumentUploadResponse(BaseModel):
+    request_id: str
+    stored: bool
+    record: ConsultingRequestV1
+    warnings: list[str] = Field(default_factory=list)
+
+
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1)
     conversation_id: str | None = None

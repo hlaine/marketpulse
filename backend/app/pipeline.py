@@ -35,11 +35,37 @@ class ExtractionPipeline:
         self.storage.save(result.record)
         return result
 
-    def process_file(self, path: str | Path) -> ConsultingRequestV1:
-        return self.process_ingested(ingest_file(path)).record
+    def process_file(
+        self,
+        path: str | Path,
+        title: str | None = None,
+        received_at: str | None = None,
+        source_ref: str | None = None,
+    ) -> ConsultingRequestV1:
+        return self.process_ingested(
+            ingest_file(
+                path,
+                title=title,
+                received_at=received_at,
+                source_ref=source_ref,
+            )
+        ).record
 
-    def process_file_with_metadata(self, path: str | Path) -> ExtractionResult:
-        return self.process_ingested(ingest_file(path))
+    def process_file_with_metadata(
+        self,
+        path: str | Path,
+        title: str | None = None,
+        received_at: str | None = None,
+        source_ref: str | None = None,
+    ) -> ExtractionResult:
+        return self.process_ingested(
+            ingest_file(
+                path,
+                title=title,
+                received_at=received_at,
+                source_ref=source_ref,
+            )
+        )
 
     def process_text_request(self, payload: ExtractionRequest) -> ConsultingRequestV1:
         return self.process_ingested(ingest_text_payload(payload)).record
