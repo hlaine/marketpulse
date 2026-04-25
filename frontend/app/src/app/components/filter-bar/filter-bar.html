@@ -1,5 +1,5 @@
-<section class="filter-bar" aria-label="Time range">
-  <span class="filter-label">Time range</span>
+<section class="filter-bar" aria-label="Tidsintervall">
+  <span class="filter-label">Tidsintervall</span>
   <div class="slider-block">
     <strong class="slider-value">{{ timeRanges[selectedIndex()].label }}</strong>
 
@@ -11,7 +11,7 @@
       step="1"
       [value]="selectedIndex()"
       (input)="onSliderChange(($any($event.target).value))"
-      aria-label="Time range"
+      aria-label="Tidsintervall"
     />
 
     <div class="slider-labels" aria-hidden="true">

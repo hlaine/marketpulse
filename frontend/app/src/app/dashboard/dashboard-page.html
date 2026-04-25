@@ -3,22 +3,28 @@
 <main class="dashboard-shell">
   @if (loading()) {
     <section class="state-panel">
-      <h1>Preparing Market Pulse</h1>
-      <p>Loading the local SQLite snapshot.</p>
+      <h1>Förbereder MarketPulse</h1>
+      <p>Läser in den lokala SQLite-snapshoten.</p>
     </section>
   } @else if (error()) {
     <section class="state-panel">
-      <h1>Dashboard data is unavailable</h1>
+      <h1>Dashboarddata är inte tillgänglig</h1>
       <p>{{ error() }}</p>
     </section>
   } @else {
     <section class="dashboard-frame">
       <header class="dashboard-header">
         <div>
-          <h1>Market Pulse</h1>
-          <p>{{ dashboard.totalRequests }} requests in the selected range</p>
+          <p class="eyebrow">Knowit Cloud & Code Hackaton - Gävle 2026</p>
+          <h1>{{ dashboard.title }}</h1>
+          <p class="subtitle">{{ dashboard.subtitle }}</p>
         </div>
-        <span class="timestamp">{{ dashboard.updatedAt }}</span>
+
+        <div class="header-meta">
+          <strong>{{ dashboard.totalRequests }}</strong>
+          <span>förfrågningar i {{ dashboard.rangeLabel }}</span>
+          <span class="timestamp">Uppdaterad {{ dashboard.updatedAt }}</span>
+        </div>
       </header>
 
       <app-filter-bar
@@ -26,138 +32,360 @@
         (timeRangeChange)="setTimeRange($event)"
       />
 
-      <section class="dashboard-grid">
-        <article class="panel panel--wide">
-          <div class="panel-head">
-            <div>
-              <p class="panel-kicker">Demand analytics</p>
-              <h2>Request volume</h2>
-            </div>
-          </div>
-
-          <div class="chart-shell">
-            <div class="y-axis" aria-hidden="true">
-              @for (tick of axisTicks(dashboard.volumePoints); track tick) {
-                <span class="y-axis-label">{{ tick }}</span>
+      @if (!dashboard.hasResults) {
+        <section class="empty-panel">
+          <h2>Det finns inga förfrågningar i det här tidsintervallet.</h2>
+          <p>Prova ett bredare intervall för att se marknadsaktivitet och prisdata.</p>
+        </section>
+      } @else {
+        <section class="kpi-strip">
+          @for (card of dashboard.kpis; track card.label) {
+            <article class="kpi-card" [ngClass]="kpiToneClass(card.tone)">
+              <span class="kpi-label">{{ card.label }}</span>
+              <strong class="kpi-value">{{ card.value }}</strong>
+              @if (card.detail) {
+                <span class="kpi-detail">{{ card.detail }}</span>
               }
+            </article>
+          }
+        </section>
+
+        @if (dashboard.insights.length) {
+          <section class="insight-strip">
+            @for (insight of dashboard.insights; track insight.label) {
+              <article class="insight-card">
+                <span class="insight-label">{{ insight.label }}</span>
+                <strong>{{ insight.text }}</strong>
+                @if (insight.detail) {
+                  <span>{{ insight.detail }}</span>
+                }
+              </article>
+            }
+          </section>
+        }
+
+        <section class="dashboard-grid">
+          <article class="panel panel--wide">
+            <div class="panel-head">
+              <div>
+                <p class="panel-kicker">Efterfrågetrend</p>
+                <h2>Förfrågningsvolym</h2>
+              </div>
+              <span class="panel-meta">{{ dashboard.totalRequests }} förfrågningar</span>
             </div>
 
-            <div class="chart-main">
-              <svg class="line-chart" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                <line class="chart-baseline" x1="0" y1="90" x2="100" y2="90"></line>
-                <polyline [attr.points]="linePoints(dashboard.volumePoints)" />
-              </svg>
-              <div class="line-axis">
-                @for (point of xAxisLabels(dashboard.volumePoints); track point.label) {
-                  <span class="axis-label">{{ point.label }}</span>
-                }
+            @if (dashboard.demandTrend.length) {
+              <div class="chart-shell">
+                <div class="y-axis" aria-hidden="true">
+                  @for (tick of yAxisTicks(dashboard.demandTrend, true); track tick) {
+                    <span class="y-axis-label">{{ tick }}</span>
+                  }
+                </div>
+
+                <div class="chart-main">
+                  <div class="chart-grid" aria-hidden="true">
+                    @for (tick of yAxisTicks(dashboard.demandTrend, true); track tick) {
+                      <span class="chart-grid-line"></span>
+                    }
+                  </div>
+
+                  <svg class="line-chart" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                    <path class="line-chart__path" [attr.d]="linePath(dashboard.demandTrend, true)"></path>
+                  </svg>
+
+                  <div class="line-axis">
+                    @for (point of xAxisLabels(dashboard.demandTrend); track point.label) {
+                      <span class="axis-label">{{ point.shortLabel }}</span>
+                    }
+                  </div>
+                </div>
+              </div>
+            } @else {
+              <p class="panel-empty">Ingen trenddata för förfrågningar är tillgänglig.</p>
+            }
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <p class="panel-kicker">Rollfördelning</p>
+                <h2>Mest efterfrågade roller</h2>
               </div>
             </div>
-          </div>
-        </article>
 
-        <article class="panel panel--wide">
-          <div class="panel-head">
-            <div>
-              <p class="panel-kicker">Manage insights</p>
-              <h2>Roles and remote mix</h2>
+            @if (dashboard.roleRanking.length) {
+              <div class="ranking-list">
+                @for (row of dashboard.roleRanking; track row.label) {
+                  <div class="ranking-row">
+                    <div class="ranking-copy">
+                      <span class="ranking-label" [title]="row.label">{{ row.label }}</span>
+                      <span class="ranking-meta">{{ row.value }} · {{ row.share | number:'1.0-0' }}%</span>
+                    </div>
+                    <div class="ranking-bar">
+                      <span class="ranking-fill" [style.width.%]="rankingWidth(row, rankingMax(dashboard.roleRanking))"></span>
+                    </div>
+                  </div>
+                }
+              </div>
+            } @else {
+              <p class="panel-empty">Ingen rolldata är tillgänglig.</p>
+            }
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <p class="panel-kicker">Roller och distansmix</p>
+                <h2>Efterfrågan per roll och distansläge</h2>
+              </div>
             </div>
-          </div>
 
-          <div class="staple-legend" aria-hidden="true">
-            <span class="legend-key"><i class="legend-swatch legend-swatch--total"></i>Total</span>
-            <span class="legend-key"><i class="legend-swatch legend-swatch--remote"></i>Remote + hybrid</span>
-          </div>
+            @if (dashboard.roleRemoteMix.length) {
+              <div class="legend-row" aria-hidden="true">
+                <span class="legend-item"><i class="legend-swatch legend-swatch--total"></i>Totalt</span>
+                <span class="legend-item"><i class="legend-swatch legend-swatch--remote"></i>Distans + hybrid</span>
+              </div>
 
-          <div class="staple-chart" aria-label="Requests by role and remote or hybrid share">
-            @for (point of dashboard.roleRemotePoints; track point.label) {
-              <div class="staple-column">
-                <div class="staple-values">
-                  <span class="staple-value staple-value--total">{{ point.total }}</span>
-                  <span class="staple-value staple-value--remote">{{ point.remoteHybrid }}</span>
-                </div>
-                <div class="staple-bars">
-                  <span
-                    class="staple staple--total"
-                    [style.height.%]="barHeight(point.total, maxTotal(dashboard.roleRemotePoints))"
-                  ></span>
-                  <span
-                    class="staple staple--remote"
-                    [style.height.%]="barHeight(point.remoteHybrid, maxTotal(dashboard.roleRemotePoints))"
-                  ></span>
-                </div>
-                <span class="staple-label">{{ point.label }}</span>
+              <div class="staple-chart">
+                @for (point of dashboard.roleRemoteMix; track point.label) {
+                  <div class="staple-column">
+                    <div class="staple-bars">
+                      <span
+                        class="staple staple--total"
+                        [style.height.%]="remoteHeight(point.total, roleMixMax(dashboard.roleRemoteMix))"
+                        [title]="point.total + ' förfrågningar totalt'"
+                      ></span>
+                      <span
+                        class="staple staple--remote"
+                        [style.height.%]="remoteHeight(point.remoteHybrid, roleMixMax(dashboard.roleRemoteMix))"
+                        [title]="point.remoteHybrid + ' förfrågningar med distans eller hybrid'"
+                      ></span>
+                    </div>
+                    <span class="staple-caption">{{ point.total }} / {{ point.remoteHybrid }}</span>
+                    <span class="staple-label" [title]="point.label">{{ point.label }}</span>
+                  </div>
+                }
+              </div>
+            } @else {
+              <p class="panel-empty">Ingen data för distansläge är tillgänglig.</p>
+            }
+          </article>
+
+          <article class="panel panel--wide">
+            <div class="panel-head">
+              <div>
+                <p class="panel-kicker">Prisinsikter</p>
+                <h2>Timpris över tid och per roll</h2>
+              </div>
+              <span class="panel-meta">{{ dashboard.rateUnitLabel }}</span>
+            </div>
+
+            <div class="rate-grid">
+              <section class="subpanel">
+                <header class="subpanel-head">
+                  <h3>Timpristrend</h3>
+                </header>
+
+                @if (dashboard.rateTrend.length) {
+                  <div class="chart-shell chart-shell--compact">
+                    <div class="y-axis" aria-hidden="true">
+                      @for (tick of yAxisTicks(dashboard.rateTrend, false); track tick) {
+                        <span class="y-axis-label">{{ tick }}</span>
+                      }
+                    </div>
+
+                    <div class="chart-main">
+                      <div class="chart-grid" aria-hidden="true">
+                        @for (tick of yAxisTicks(dashboard.rateTrend, false); track tick) {
+                          <span class="chart-grid-line"></span>
+                        }
+                      </div>
+
+                      <svg class="line-chart line-chart--rate" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                        <path class="line-chart__path" [attr.d]="linePath(dashboard.rateTrend, false)"></path>
+                      </svg>
+
+                      <div class="line-axis">
+                        @for (point of xAxisLabels(dashboard.rateTrend); track point.label) {
+                          <span class="axis-label">{{ point.shortLabel }}</span>
+                        }
+                      </div>
+                    </div>
+                  </div>
+                } @else {
+                  <p class="panel-empty">Ingen timprisdata är tillgänglig.</p>
+                }
+              </section>
+
+              <section class="subpanel">
+                <header class="subpanel-head">
+                  <h3>Pris per roll</h3>
+                </header>
+
+                @if (dashboard.rateByRole.length) {
+                  <div class="range-list">
+                    @for (row of dashboard.rateByRole; track row.label) {
+                      <div class="range-row">
+                        <div class="range-copy">
+                          <span class="range-label" [title]="row.label">{{ row.label }}</span>
+                          <span class="range-meta">Median {{ row.median }} · n={{ row.count }}</span>
+                        </div>
+                        <div class="range-track">
+                          <span
+                            class="range-span"
+                            [style.left.%]="rateRangeOffset(row, rateByRoleMax(dashboard.rateByRole))"
+                            [style.width.%]="rateRangeWidth(row, rateByRoleMax(dashboard.rateByRole))"
+                          ></span>
+                          <span
+                            class="range-marker"
+                            [style.left.%]="rateMedianOffset(row, rateByRoleMax(dashboard.rateByRole))"
+                          ></span>
+                        </div>
+                      </div>
+                    }
+                  </div>
+                } @else {
+                  <p class="panel-empty">Det finns ännu för få prisobservationer per roll.</p>
+                }
+              </section>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <p class="panel-kicker">Geografi och distansläge</p>
+                <h2>Efterfrågan per stad</h2>
+              </div>
+            </div>
+
+            @if (dashboard.locations.length) {
+              <div class="legend-row" aria-hidden="true">
+                <span class="legend-item"><i class="legend-swatch legend-swatch--onsite"></i>På plats</span>
+                <span class="legend-item"><i class="legend-swatch legend-swatch--hybrid"></i>Hybrid</span>
+                <span class="legend-item"><i class="legend-swatch legend-swatch--remote-only"></i>Distans</span>
+              </div>
+
+              <div class="location-list">
+                @for (row of dashboard.locations; track row.label) {
+                  <div class="location-row">
+                    <div class="location-copy">
+                      <span class="location-label" [title]="row.label">{{ row.label }}</span>
+                      <span class="location-meta">{{ row.total }} förfrågningar</span>
+                    </div>
+                    <div class="stack-bar">
+                      <span class="stack-segment stack-segment--onsite" [style.width.%]="locationShare(row.onsite, row.total)"></span>
+                      <span class="stack-segment stack-segment--hybrid" [style.width.%]="locationShare(row.hybrid, row.total)"></span>
+                      <span class="stack-segment stack-segment--remote" [style.width.%]="locationShare(row.remote, row.total)"></span>
+                    </div>
+                  </div>
+                }
+              </div>
+            } @else {
+              <p class="panel-empty">Ingen platsdata finns i den här snapshoten.</p>
+            }
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <p class="panel-kicker">Datakvalitet</p>
+                <h2>Tillförlitlighet i extraktionen</h2>
+              </div>
+            </div>
+
+            <div class="quality-summary">
+              <strong>{{ qualityLabel(dashboard.dataQuality) }}</strong>
+              <span>{{ dashboard.dataQuality.reviewNeeded }} förfrågningar behöver granskas</span>
+            </div>
+
+            @if (dashboard.dataQuality.missingFields.length) {
+              <div class="chip-list">
+                @for (field of dashboard.dataQuality.missingFields; track field.label) {
+                  <span class="quality-chip">{{ field.label }} missing: {{ field.count }}</span>
+                }
               </div>
             }
-          </div>
-        </article>
+          </article>
 
-        <article class="panel">
-          <div class="panel-head">
-            <div>
-              <p class="panel-kicker">Priority insights</p>
-              <h2>Role distribution</h2>
-            </div>
-          </div>
-
-          <div class="pie-layout">
-            <svg class="pie-chart" viewBox="0 0 42 42" aria-hidden="true">
-              @for (segment of pieSegments(dashboard.roleDistribution); track segment.label) {
-                <circle
-                  class="pie-segment"
-                  [attr.class]="'pie-segment pie-segment--' + ($index % 6)"
-                  cx="21"
-                  cy="21"
-                  r="15.915"
-                  fill="transparent"
-                  stroke-width="5"
-                  [attr.stroke-dasharray]="segment.dash"
-                  [attr.stroke-dashoffset]="25 - segment.rotateOffset"
-                />
-              }
-            </svg>
-
-            <div class="pie-legend">
-              @for (slice of dashboard.roleDistribution; track slice.label) {
-                <div class="pie-row">
-                  <span class="pie-dot" [attr.data-index]="$index % 6"></span>
-                  <span class="pie-role">{{ slice.label }}</span>
-                  <strong class="pie-percent">{{ slice.percent | number:'1.0-0' }}%</strong>
-                </div>
-              }
-            </div>
-          </div>
-        </article>
-
-        <article class="panel">
-          <div class="panel-head">
-            <div>
-              <p class="panel-kicker">Rate over time</p>
-              <h2>Hourly rate</h2>
-            </div>
-          </div>
-
-          <div class="chart-shell">
-            <div class="y-axis" aria-hidden="true">
-              @for (tick of axisTicks(dashboard.ratePoints); track tick) {
-                <span class="y-axis-label">{{ formatRateTick(tick) }}</span>
-              }
-            </div>
-
-            <div class="chart-main">
-              <svg class="line-chart line-chart--rate" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                <line class="chart-baseline" x1="0" y1="90" x2="100" y2="90"></line>
-                <polyline [attr.points]="linePoints(dashboard.ratePoints)" />
-              </svg>
-              <div class="line-axis">
-                @for (point of xAxisLabels(dashboard.ratePoints); track point.label) {
-                  <span class="axis-label">{{ point.label }}</span>
-                }
+          <article class="panel panel--wide">
+            <div class="panel-head">
+              <div>
+                <p class="panel-kicker">Partner- och mäklarinsikter</p>
+                <h2>Vem skickar efterfrågan</h2>
               </div>
             </div>
-          </div>
-        </article>
-      </section>
+
+            @if (dashboard.brokers.length) {
+              <div class="broker-table">
+                <div class="broker-row broker-row--header">
+                  <span>Partner / mäklare</span>
+                  <span>Förfrågningar</span>
+                  <span>Vanligaste roll</span>
+                  <span>Snittpris</span>
+                  <span>Andel distans</span>
+                </div>
+
+                @for (broker of dashboard.brokers; track broker.label) {
+                  <div class="broker-row">
+                    <span class="broker-name" [title]="broker.label">{{ broker.label }}</span>
+                    <span>{{ broker.requests }}</span>
+                    <span [title]="broker.topRole">{{ broker.topRole }}</span>
+                    <span>{{ broker.averageRate !== null ? (broker.averageRate | number:'1.0-0') + ' ' + dashboard.rateUnitLabel : 'Okänt' }}</span>
+                    <span>{{ broker.remoteShare | number:'1.0-0' }}%</span>
+                  </div>
+                }
+              </div>
+            } @else {
+              <p class="panel-empty">Ingen partner- eller mäklardata är tillgänglig.</p>
+            }
+          </article>
+
+          <article class="panel panel--full">
+            <div class="panel-head">
+              <div>
+                <p class="panel-kicker">Detaljvy</p>
+                <h2>Senaste förfrågningarna i intervallet</h2>
+              </div>
+            </div>
+
+            @if (dashboard.requestRows.length) {
+              <div class="table-wrap">
+                <table class="request-table">
+                  <thead>
+                    <tr>
+                      <th>Mottagen</th>
+                      <th>Roll</th>
+                      <th>Plats</th>
+                      <th>Distansläge</th>
+                      <th>Pris</th>
+                      <th>Längd</th>
+                      <th>Partner / mäklare</th>
+                      <th>Kvalitet</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (row of dashboard.requestRows; track row.receivedAt + row.role + row.broker) {
+                      <tr>
+                        <td>{{ row.receivedAt }}</td>
+                        <td [title]="row.role">{{ row.role }}</td>
+                        <td [title]="row.location">{{ row.location }}</td>
+                        <td>{{ row.remoteMode }}</td>
+                        <td>{{ row.rate }}</td>
+                        <td>{{ row.duration }}</td>
+                        <td [title]="row.broker">{{ row.broker }}</td>
+                        <td>{{ row.quality }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            } @else {
+              <p class="panel-empty">Det finns inga förfrågningsrader i det här intervallet.</p>
+            }
+          </article>
+        </section>
+      }
     </section>
   }
 </main>

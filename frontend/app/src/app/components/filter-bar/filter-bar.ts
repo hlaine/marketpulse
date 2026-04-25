@@ -14,11 +14,11 @@ export class FilterBarComponent {
   readonly timeRangeChange = output<TimeRange>();
 
   protected readonly timeRanges: Array<{ value: TimeRange; label: string }> = [
-    { value: '30D', label: '30 days' },
-    { value: '3M', label: '3 months' },
-    { value: '1Y', label: '1 year' },
-    { value: '5Y', label: '5 years' },
-    { value: '10Y', label: '10 years' }
+    { value: '30D', label: '30 dagar' },
+    { value: '3M', label: '3 månader' },
+    { value: '1Y', label: '1 år' },
+    { value: '5Y', label: '5 år' },
+    { value: '10Y', label: '10 år' }
   ];
 
   protected selectedIndex(): number {
