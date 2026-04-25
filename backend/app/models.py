@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -15,6 +16,8 @@ class EmailEnvelope(BaseModel):
     to: str | None = None
     cc: str | None = None
     body: str | None = None
+
+    model_config = {"populate_by_name": True}
 
 
 class IngestedSource(BaseModel):
@@ -50,6 +53,16 @@ class DocumentUploadResponse(BaseModel):
     request_id: str
     stored: bool
     record: ConsultingRequestV1
+    warnings: list[str] = Field(default_factory=list)
+
+
+class DemoEmailRequest(BaseModel):
+    seed: str | None = None
+
+
+class DemoEmailResponse(BaseModel):
+    email: EmailEnvelope
+    generated_by: Literal["ai", "fallback"]
     warnings: list[str] = Field(default_factory=list)
 
 

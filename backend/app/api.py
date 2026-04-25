@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
@@ -10,9 +11,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError
 
 from app.chat import AnalysisChatService, ChatError, UnsafeQueryError
-from app.config import Settings, get_settings
+from app.config import REPO_ROOT, Settings, get_settings
+from app.demo_email import DemoEmailGenerator
 from app.llm import ProviderError
-from app.models import ChatRequest, DocumentUploadResponse, ExtractionRequest
+from app.models import (
+    ChatRequest,
+    DemoEmailRequest,
+    DemoEmailResponse,
+    DocumentUploadResponse,
+    ExtractionRequest,
+)
 from app.pipeline import ExtractionPipeline
 
 
@@ -29,6 +37,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     active_settings = settings or get_settings()
     pipeline = ExtractionPipeline(active_settings)
     chat_service = AnalysisChatService(active_settings)
+    demo_email_generator = DemoEmailGenerator(active_settings)
 
     app = FastAPI(title=active_settings.app_name)
     app.add_middleware(
@@ -89,6 +98,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             record=record,
             warnings=record.quality.warnings,
         )
+
+    @app.post("/demo/emails")
+    def create_demo_email(
+        payload: DemoEmailRequest | None = None,
+    ) -> DemoEmailResponse:
+        return demo_email_generator.generate(seed=payload.seed if payload else None)
+
+    @app.get("/analytics/snapshot")
+    def analytics_snapshot() -> dict:
+        rows = pipeline.storage.list_request_snapshot_rows()
+        return {
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "database_path": _display_database_path(active_settings.database_path),
+            "snapshot_note": "Live SQLite snapshot for frontend analytics. Values may include partially normalized fields.",
+            "row_count": len(rows),
+            "requests": rows,
+        }
 
     @app.get("/requests")
     def list_requests():
@@ -188,6 +214,13 @@ def _auto_source_ref(filename: str, suffix: str, payload: bytes) -> str | None:
             return None
     digest = hashlib.sha1(payload).hexdigest()[:12]
     return f"upload://{digest}/{filename}"
+
+
+def _display_database_path(database_path: Path) -> str:
+    try:
+        return str(database_path.relative_to(REPO_ROOT))
+    except ValueError:
+        return str(database_path)
 
 
 app = create_app()

@@ -67,6 +67,13 @@ a {
   text-decoration: none;
 }
 
+.header-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: end;
+}
+
 .message-list {
   display: grid;
   align-content: start;
@@ -185,6 +192,10 @@ button:disabled {
 
   .chat-header {
     display: grid;
+  }
+
+  .header-nav {
+    justify-content: start;
   }
 
   .message {

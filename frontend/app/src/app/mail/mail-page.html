@@ -1,0 +1,99 @@
+<main class="mail-shell">
+  <section class="mail-frame">
+    <header class="mail-header">
+      <div>
+        <p class="eyebrow">Demo inbox</p>
+        <h1>Market Pulse Mail</h1>
+        <p>{{ emails().length }} mail i inkorgen</p>
+      </div>
+      <nav class="header-nav" aria-label="Primär navigering">
+        <a routerLink="/">Dashboard</a>
+        <a routerLink="/chat">Chat</a>
+      </nav>
+    </header>
+
+    <section class="mail-toolbar">
+      <button type="button" (click)="refreshInbox()" [disabled]="loadingRefresh()">
+        {{ loadingRefresh() ? 'Hämtar...' : 'Uppdatera' }}
+      </button>
+      @if (refreshError()) {
+        <p class="toolbar-error">{{ refreshError() }}</p>
+      }
+    </section>
+
+    <section class="mail-layout">
+      <aside class="inbox" aria-label="Inkorg">
+        @if (!emails().length) {
+          <div class="empty-inbox">
+            <h2>Inkorgen är tom</h2>
+            <p>Klicka på uppdatera för att skapa ett demo-mail.</p>
+          </div>
+        } @else {
+          @for (item of emails(); track item.email.id) {
+            <button
+              type="button"
+              class="mail-row"
+              [class.mail-row--active]="item.email.id === selectedEmailId()"
+              (click)="selectEmail(item.email.id)"
+            >
+              <span class="row-topline">
+                <span class="sender">{{ senderName(item.email.from) }}</span>
+                <span class="status-badge" [attr.data-status]="item.status">{{ statusLabel(item) }}</span>
+              </span>
+              <span class="subject">{{ item.email.subject || 'Utan ämne' }}</span>
+              <span class="date">{{ formatDate(item.email.date) }}</span>
+            </button>
+          }
+        }
+      </aside>
+
+      <article class="reader" aria-live="polite">
+        @if (selectedEmail(); as selected) {
+          <header class="reader-header">
+            <div>
+              <span class="source-pill">{{ selected.generatedBy === 'ai' ? 'AI-genererat' : 'Fallback' }}</span>
+              <h2>{{ selected.email.subject || 'Utan ämne' }}</h2>
+              <p>Från {{ selected.email.from || 'okänd avsändare' }} till {{ selected.email.to || 'okänd mottagare' }}</p>
+              <p>{{ formatDate(selected.email.date) }}</p>
+            </div>
+            <button
+              type="button"
+              (click)="forwardSelectedEmail()"
+              [disabled]="selected.status === 'analyzed' || !!forwardingEmailId()"
+            >
+              {{ selected.status === 'analyzing' ? 'Analyserar...' : 'Vidarebefordra till analys' }}
+            </button>
+          </header>
+
+          @if (selected.generationWarnings.length) {
+            <ul class="warning-list">
+              @for (warning of selected.generationWarnings; track warning) {
+                <li>{{ warning }}</li>
+              }
+            </ul>
+          }
+
+          <section class="mail-body" [innerHTML]="selected.email.body || ''"></section>
+
+          @if (selected.analysis) {
+            <section class="analysis-reply">
+              <p class="reply-label">Svar från analysen</p>
+              <p>{{ selected.analysis }}</p>
+            </section>
+          }
+
+          @if (selected.error) {
+            <section class="analysis-error">
+              <p>{{ selected.error }}</p>
+            </section>
+          }
+        } @else {
+          <div class="empty-reader">
+            <h2>Välj ett mail</h2>
+            <p>När ett demo-mail finns i inkorgen visas innehållet här.</p>
+          </div>
+        }
+      </article>
+    </section>
+  </section>
+</main>

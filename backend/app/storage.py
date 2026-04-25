@@ -360,6 +360,33 @@ class SQLiteStorage:
             ).fetchall()
         return [IndexEntry.model_validate(dict(row)) for row in rows]
 
+    def list_request_snapshot_rows(self) -> list[dict]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT
+                    request_id,
+                    received_at,
+                    source_kind,
+                    sender_organization,
+                    sender_domain,
+                    primary_role,
+                    seniority,
+                    sector,
+                    location_city,
+                    remote_mode,
+                    rate_amount,
+                    rate_currency,
+                    rate_unit,
+                    duration_months,
+                    review_status,
+                    overall_confidence
+                FROM requests
+                ORDER BY received_at ASC, request_id ASC
+                """
+            ).fetchall()
+        return [dict(row) for row in rows]
+
     def get_request(self, request_id: str) -> ConsultingRequestV1:
         with self._connect() as connection:
             row = connection.execute(

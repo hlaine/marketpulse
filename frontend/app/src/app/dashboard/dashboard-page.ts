@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 
 import { FilterBarComponent } from '../components/filter-bar/filter-bar';
 import { RequestRecord, RequestSnapshot } from '../models/request-record.model';
@@ -18,7 +19,7 @@ import {
 
 @Component({
   selector: 'app-dashboard-page',
-  imports: [CommonModule, FilterBarComponent],
+  imports: [CommonModule, RouterLink, FilterBarComponent],
   templateUrl: './dashboard-page.html',
   styleUrl: './dashboard-page.css'
 })
